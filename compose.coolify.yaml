@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: mable
       POSTGRES_USER: mable
-      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_MABLE_DB}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_MABLE_DB:?Set a PostgreSQL password in Coolify}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,10 +18,10 @@ services:
     build: .
     command: sh -c "pnpm db:migrate && exec pnpm start"
     environment:
-      DATABASE_URL: postgres://mable:${SERVICE_PASSWORD_MABLE_DB}@db:5432/mable
+      DATABASE_URL: postgres://mable:${SERVICE_PASSWORD_MABLE_DB:?Set a PostgreSQL password in Coolify}@db:5432/mable
       BETTER_AUTH_URL: https://mable.arminayat.dev
-      BETTER_AUTH_SECRET: ${SERVICE_HEX_64_MABLE_AUTH}
-      CREDENTIAL_ENCRYPTION_KEY: ${SERVICE_REALBASE64_32_MABLE_CREDENTIALS}
+      BETTER_AUTH_SECRET: ${SERVICE_HEX_64_MABLE_AUTH:?Set an auth secret in Coolify}
+      CREDENTIAL_ENCRYPTION_KEY: ${SERVICE_REALBASE64_32_MABLE_CREDENTIALS:?Set a credential encryption key in Coolify}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?}
     depends_on:
@@ -39,10 +39,10 @@ services:
     build: .
     command: pnpm worker
     environment:
-      DATABASE_URL: postgres://mable:${SERVICE_PASSWORD_MABLE_DB}@db:5432/mable
+      DATABASE_URL: postgres://mable:${SERVICE_PASSWORD_MABLE_DB:?Set a PostgreSQL password in Coolify}@db:5432/mable
       BETTER_AUTH_URL: https://mable.arminayat.dev
-      BETTER_AUTH_SECRET: ${SERVICE_HEX_64_MABLE_AUTH}
-      CREDENTIAL_ENCRYPTION_KEY: ${SERVICE_REALBASE64_32_MABLE_CREDENTIALS}
+      BETTER_AUTH_SECRET: ${SERVICE_HEX_64_MABLE_AUTH:?Set an auth secret in Coolify}
+      CREDENTIAL_ENCRYPTION_KEY: ${SERVICE_REALBASE64_32_MABLE_CREDENTIALS:?Set a credential encryption key in Coolify}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?}
     depends_on:
