@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: mable
+      POSTGRES_USER: mable
+      POSTGRES_PASSWORD: mable
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mable -d mable"]
+      interval: 5s
+      retries: 10
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://mable:mable@db:5432/mable
+    command: pnpm db:migrate
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://mable:mable@db:5432/mable
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://mable:mable@db:5432/mable
+    command: pnpm worker
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  postgres_data:
