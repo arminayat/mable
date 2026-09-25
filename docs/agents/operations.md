@@ -44,7 +44,7 @@ Coolify configuration refers to `SERVICE_PASSWORD_MABLE_DB`, `SERVICE_HEX_64_MAB
 
 **Integration tests delete all users in their selected database.** Explicitly configure a disposable database and test encryption key, migrate it, then run the integration command. Do not inherit a real deployment `.env`. No browser tests are authorized by default.
 
-UI release verification (2026-09-25): typecheck, lint, unit tests (3 files, 10 tests), production build, and whitespace checks passed locally. Database integration is delegated to CI’s disposable PostgreSQL service; no local integration or browser tests were run. These UI changes require no new environment variables or database migrations. Deployment and live acceptance must be verified separately.
+UI release verification (2026-09-25): typecheck, lint, unit tests (3 files, 10 tests), production build, and whitespace checks passed locally. Database integration is delegated to CI’s disposable PostgreSQL service; no local integration or browser tests were run. These UI changes require no new environment variables or database migrations. Release `c4393d7` passed GitHub CI `36112269704` including disposable-DB integration tests. Coolify application `mkqjvrpgpp12xc3ho1rk9mmt` deployed that revision successfully in deployment `rfhpz4cq7vvc1eg0bz9etumg` on 2026-09-25; DB and web became healthy, worker started, and the public homepage returned HTTP 200 with the updated welcome copy. Authenticated UI interactions were not browser-tested. The deployment dashboard is `https://coolify.arminayat.dev`; this release was triggered manually after pushing main.
 
 ## Planned/aspirational
 
