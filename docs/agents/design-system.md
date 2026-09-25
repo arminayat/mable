@@ -12,7 +12,7 @@ Source: `src/app/globals.css`, `src/app/layout.tsx`, `src/components/*.tsx`. The
 | Main shell | 860px max-width, centered, 34px desktop horizontal padding. |
 | Headline | Welcome 42–66px with tight tracking; signed-in view has no intro headline. |
 | Forms | 9px radius, 11px/12px padding, blue focus border and pale focus ring. |
-| Dialog | 540px maximum width (run dialog 420px), 17px radius, overlay and scrollable panel. |
+| Dialog | 540px maximum width by default (run setup 420px, history 620px), 17px radius, overlay and scrollable panel. |
 | Responsive rule | At max-width 600px, shell padding shrinks, action icons move below questions and menu stacks. |
 
 The shared accent also drives HeroUI’s `--accent`, active switch-icon buttons, links, focus borders, and primary control text; pale surfaces and focus rings derive from it. Action-specific colors remain unchanged.
@@ -21,7 +21,7 @@ The signed-in questions view starts with a full-width rounded question input wit
 
 Settings uses the section and internal spacing detailed below, with a divider above account deletion. Gmail status and reconnect sit in one row, input/button rows align vertically, and Save preferences is right-aligned. Sign-out lives in the user menu.
 
-The top bar groups matching ghost icon buttons on the right: a Play button opening the run modal beside the user-icon button. Its HeroUI dropdown shows Settings and Log out, without an account-email header, on both desktop and mobile.
+The top bar groups matching ghost icon buttons on the right: History, Play to open Run now, and the user-icon button. History has a hover/focus tooltip and opens a 620px dialog of newest-first run summaries, with compact scope, date, status, counts and older/newer paging; each row opens the existing two-column run review. The history panel stacks row metadata on narrow screens. Its empty, loading and retry states use the same restrained text and surface styles. The user-icon dropdown shows Settings and Log out, without an account-email header, on both desktop and mobile.
 
 The signed-in footer includes a “How it works” text button beside Privacy. It opens a HeroUI modal with a short ordered guide, a labeled close control, and library-managed keyboard/focus behavior. Existing settings/run dialogs remain custom overlays.
 
@@ -31,7 +31,7 @@ The welcome footer contains a GitHub icon with a Source link to `https://github.
 
 Automatic cleanup frequency and run scope use HeroUI Select and ListBox through `SelectField`; Gmail labels use HeroUI ComboBox and ListBox through `LabelPicker`. The shared popover sits above custom dialogs; label selection keeps its full-width mobile layout. HeroUI Button and Tooltip coexist with native buttons, textarea, checkbox, range, and inputs. Lucide icons indicate actions. Custom CSS sometimes targets button containers directly; inspect selectors before changing HeroUI variants. There is no complete tokenized spacing/typography system; many values are literal CSS.
 
-Rows use a labeled drag handle with pointer capture for mouse/touch dragging and Up/Down keys for keyboard reordering, an editable question button, tooltip action icons, an `aria-pressed` enabled toggle, and labeled delete controls. Forms/errors include several explicit labels and `role="alert"`; focusable icon descriptions exist. Accessibility is partial: Settings lacks keyboard/focus lifecycle; the run dialog provides Tab/Escape, initial focus and restoration, but browser accessibility acceptance is unverified. The key input has an accessible label.
+Rows use a labeled drag handle with pointer capture for mouse/touch dragging and Up/Down keys for keyboard reordering, an editable question button, tooltip action icons, an `aria-pressed` enabled toggle, and labeled delete controls. Forms/errors include several explicit labels and `role="alert"`; focusable icon descriptions exist. Accessibility is partial: Settings lacks keyboard/focus lifecycle; the run and history dialogs provide Tab/Escape, initial focus and restoration, but browser accessibility acceptance is unverified. The key input has an accessible label.
 
 The questions view has no Gmail connection indicator; connection status and reconnection remain in Settings. Run now is a header icon button and is hidden when there are no saved questions.
 

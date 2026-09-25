@@ -15,7 +15,7 @@ These are source observations, not claims of reproduced production incidents. Un
 
 - **Symptom:** Settings declares `aria-modal` without focus trapping/restoration or Escape close handling.
 - **Root cause:** the custom `settings-panel.tsx` overlay has no accessible dialog primitive.
-- **Fix/workaround:** Settings has visible close and backdrop handling. The new `RunDialog` focuses the panel, cycles Tab/Shift+Tab, closes on Escape, and restores the opener; its browser accessibility acceptance remains unverified.
+- **Fix/workaround:** Settings has visible close and backdrop handling. `RunDialog` and `RunHistoryDialog` focus their panels, cycle Tab/Shift+Tab, close on Escape, and restore their openers; browser accessibility acceptance remains unverified.
 - **Planned/aspirational prevention:** use an accessible dialog primitive for Settings and verify portal/keyboard/focus behavior with user-authorized browser testing.
 
 ### K3 — transient Gmail errors can leave an apparently connected view (open)

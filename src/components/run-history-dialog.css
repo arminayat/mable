@@ -1,0 +1,25 @@
+.run-history-dialog { display: flex; flex-direction: column; width: min(620px, 100%); max-height: min(82dvh, 800px); padding: 28px; overflow: hidden; }
+.run-history-dialog:focus { outline: none; }
+.run-history-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.run-history-header p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.run-history-header > button { flex-shrink: 0; background: #f7f9fb; color: var(--muted); border-radius: 12px; }
+.run-history-list { min-height: 100px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 14px; }
+.run-history-message { min-height: 100px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 18px; color: var(--muted); font-size: 13px; text-align: center; }
+.run-history-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; align-items: center; gap: 16px; width: 100%; padding: 16px; border: 0; border-bottom: 1px solid var(--line); background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.run-history-item:last-child { border-bottom: 0; }
+.run-history-item:hover, .run-history-item:focus-visible { background: #f7f9fb; }
+.run-history-item:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.run-history-item-main, .run-history-item-detail { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+.run-history-item-main strong { font-size: 14px; font-weight: 600; }
+.run-history-date, .run-history-counts { color: var(--muted); font-size: 12px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.run-history-status { color: var(--blue); font-size: 12px; font-weight: 600; text-transform: capitalize; }
+.run-history-status[data-status="complete"] { color: #14795f; }
+.run-history-status[data-status="failed"], .run-history-status[data-status="cancelled"] { color: #b8545e; }
+.run-history-item > svg { color: var(--muted); }
+.run-history-pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .run-history-dialog { padding: 20px; }
+  .run-history-item { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .run-history-item-detail { grid-column: 1; }
+  .run-history-item > svg { grid-column: 2; grid-row: 1 / span 2; }
+}

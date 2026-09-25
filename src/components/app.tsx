@@ -1,9 +1,10 @@
 "use client";
 import { RunDialog } from "./run-dialog";
+import { RunHistoryDialog } from "./run-history-dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button, Tooltip } from "@heroui/react";
-import { Archive, Check, ToggleLeft, ToggleRight, MailOpen, Play, Star, Tag, Trash2 } from "lucide-react";
+import { Archive, Check, History, ToggleLeft, ToggleRight, MailOpen, Play, Star, Tag, Trash2 } from "lucide-react";
 import { HowItWorks } from "./how-it-works";
 import { collapseRule, expandRule } from "./rule-transition";
 import { moveSavedQuestion } from "./save-question-transition";
@@ -55,6 +56,7 @@ export function MableApp({ email }: { email: string }) {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [reviewRunId, setReviewRunId] = useState<string | null>(null);
 
@@ -121,6 +123,7 @@ export function MableApp({ email }: { email: string }) {
   if (!view) return <main className="shell"><div className="brand">mable<span>.</span></div><p className="muted">Loading your questions…</p>{error && <p className="error">{error}</p>}</main>;
   return <main className="shell app-shell">
     <header className="topbar"><div className="brand">mable<span>.</span></div><div className="header-actions">
+      <Tooltip delay={200}><Button variant="ghost" isIconOnly aria-label="Run history" aria-haspopup="dialog" onPress={() => setHistoryOpen(true)}><History size={20}/></Button><Tooltip.Content>History</Tooltip.Content></Tooltip>
       {view.rules.length > 0 && <Button variant="ghost" isIconOnly aria-label="Run now" aria-haspopup="dialog" isDisabled={!view.settings.hasKey || !view.gmailConnected || !view.rules.some((rule) => rule.enabled)} onPress={() => { setReviewRunId(view.run && ["running", "queued", "paused", "failed"].includes(view.run.status) ? view.run.id : null); setRunOpen(true); }}><Play size={20}/></Button>}
       <UserMenu openSettings={() => setSettingsOpen(true)} onError={setError}/>
     </div></header>
@@ -139,6 +142,7 @@ export function MableApp({ email }: { email: string }) {
     </div>
     <footer>Questions stay yours. Email content is not saved by Mable. · <Link href="/privacy">Privacy</Link> · <HowItWorks/></footer>
     {settingsOpen && <SettingsPanel email={email} view={view} command={command} close={() => setSettingsOpen(false)} changed={() => void refresh()}/>}
+    {historyOpen && <RunHistoryDialog close={() => setHistoryOpen(false)} review={(id) => { setHistoryOpen(false); setReviewRunId(id); setRunOpen(true); }}/>}
     {runOpen && <RunDialog initialRunId={reviewRunId} labels={view.labels} command={command} changed={() => void refresh().catch(() => {})} close={() => setRunOpen(false)}/>}
   </main>;
 }

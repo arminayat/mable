@@ -16,6 +16,7 @@ vi.mock("../../src/lib/decide", () => ({ decide: mock.decide }));
 import { db, pool } from "../../src/lib/db";
 import { GET, POST } from "../../src/app/api/mable/route";
 import { GET as streamProgress } from "../../src/app/api/mable/runs/[id]/events/route";
+import { GET as runHistory } from "../../src/app/api/mable/runs/route";
 import { GET as emailPreview } from "../../src/app/api/mable/runs/[id]/messages/[messageId]/route";
 import { getRunProgress } from "../../src/lib/run-progress";
 import type { RunProgress } from "../../src/lib/run-progress-types";
@@ -291,6 +292,32 @@ describe("AI provider credentials", () => {
 });
 
 describe("live run review", () => {
+  it("lists only the signed-in account's runs newest first, with bounded pages and safe fields", async () => {
+    const owner = await setup();
+    const other = await setup();
+    const entries = Array.from({ length: 22 }, (_, index) => ({
+      id: crypto.randomUUID(), userId: owner, scope: "all" as const, status: "complete" as const,
+      rulesSnapshot: [], threshold: 90, processed: index, createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
+    }));
+    await db.insert(runs).values([...entries, { ...entries[0], id: crypto.randomUUID(), userId: other }]);
+    const request = (query = "") => runHistory(new Request(`http://localhost:3014/api/mable/runs${query}`));
+    expect((await request()).status).toBe(401);
+    mock.session.mockResolvedValue({ user: { id: owner } });
+    const firstResponse = await request();
+    const first = await firstResponse.json();
+    expect(firstResponse.headers.get("cache-control")).toBe("private, no-store");
+    expect(first).toMatchObject({ page: 0, hasMore: true });
+    expect(first.runs).toHaveLength(20);
+    expect(first.runs[0].id).toBe(entries[21].id);
+    expect(first.runs[0]).not.toHaveProperty("rulesSnapshot");
+    const second = await (await request("?page=1")).json();
+    expect(second).toMatchObject({ page: 1, hasMore: false });
+    expect(second.runs.map((run: { id: string }) => run.id)).toEqual([entries[1].id, entries[0].id]);
+    expect((await request("?page=-1")).status).toBe(400);
+    mock.session.mockResolvedValue({ user: { id: other } });
+    expect((await (await request()).json()).runs.map((run: { id: string }) => run.id)).not.toContain(entries[21].id);
+  });
+
   function streamRequest(id: string, page = "") {
     return streamProgress(new Request(`http://localhost:3014/api/mable/runs/${id}/events${page}`), { params: Promise.resolve({ id }) });
   }
