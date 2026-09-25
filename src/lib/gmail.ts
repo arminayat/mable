@@ -57,18 +57,29 @@ export async function message(token: string, id: string) {
   return gmail<GmailMessage>(token, `/messages/${encodeURIComponent(id)}?format=full`);
 }
 
-export async function inboxIds(token: string, afterSeconds?: number) {
-  const ids: string[] = [];
+export async function preview(token: string, id: string, signal?: AbortSignal) {
+  const mail = await gmail<{ snippet?: string; payload?: { headers?: { name: string; value: string }[] } }>(token,
+    `/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`,
+    signal ? { signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]) } : undefined);
+  const headers = new Map((mail.payload?.headers ?? []).map(({ name, value }) => [name.toLowerCase(), value]));
+  return { subject: headers.get("subject") || "(No subject)", from: headers.get("from") || "", excerpt: (mail.snippet ?? "").slice(0, 600) };
+}
+
+export async function inboxIds(token: string, afterSeconds?: number, limit = Infinity) {
+  const ids = new Set<string>();
   let page: string | undefined;
   do {
-    const query = new URLSearchParams({ maxResults: "500", labelIds: "INBOX" });
+    const query = new URLSearchParams({ maxResults: String(Math.min(500, limit - ids.size)), labelIds: "INBOX" });
     if (afterSeconds) query.set("q", `after:${afterSeconds}`);
     if (page) query.set("pageToken", page);
     const result: MessagePage = await gmail(token, `/messages?${query}`);
-    ids.push(...(result.messages ?? []).map((item) => item.id));
+    for (const item of result.messages ?? []) {
+      ids.add(item.id);
+      if (ids.size >= limit) return [...ids];
+    }
     page = result.nextPageToken;
   } while (page);
-  return ids;
+  return [...ids];
 }
 
 export async function addedSince(token: string, historyId: string) {

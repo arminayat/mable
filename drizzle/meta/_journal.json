@@ -8,6 +8,20 @@
       "when": 1790277246779,
       "tag": "0000_naive_morph",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790333920849,
+      "tag": "0001_panoramic_fantastic_four",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790337375997,
+      "tag": "0002_sharp_firestar",
+      "breakpoints": true
     }
   ]
 }

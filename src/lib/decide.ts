@@ -1,6 +1,6 @@
-import { experimental_evaluate } from "ai";
+import { createGateway, experimental_evaluate } from "ai";
 import { createTypeSafeAi } from "@ai-sdk/typesafe-ai";
-import type { RuleSnapshot } from "./schema";
+import type { KeyProvider, RuleSnapshot } from "./schema";
 
 export type MailContext = {
   from: string;
@@ -16,15 +16,17 @@ export function firstMatch(probabilities: number[], threshold: number) {
   return probabilities.findIndex((value) => value >= threshold / 100);
 }
 
-export async function decide(context: MailContext, rules: RuleSnapshot[], threshold: number, apiKey: string) {
-  if (!rules.length) return -1;
-  const provider = createTypeSafeAi({ apiKey });
+export async function decide(context: MailContext, rules: RuleSnapshot[], threshold: number, apiKey: string, keyProvider: KeyProvider = "typesafe") {
+  if (!rules.length) return { index: -1, probabilities: [] as number[] };
+  const model = keyProvider === "vercel"
+    ? createGateway({ apiKey }).evaluationModel("typesafe-ai/jev")
+    : createTypeSafeAi({ apiKey }).evaluationModel("jev-latest");
   const questions = Object.fromEntries(rules.map((rule, index) => [
     `rule_${index}`,
     { type: "boolean" as const, instructions: rule.question },
   ]));
   const result = await experimental_evaluate({
-    model: provider.evaluationModel("jev-latest"),
+    model,
     state: { email: context },
     questions,
     abortSignal: AbortSignal.timeout(30_000),
@@ -36,5 +38,5 @@ export async function decide(context: MailContext, rules: RuleSnapshot[], thresh
     }
     return answer.probability;
   });
-  return firstMatch(probabilities, threshold);
+  return { index: firstMatch(probabilities, threshold), probabilities };
 }

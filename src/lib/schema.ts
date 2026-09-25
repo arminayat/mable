@@ -46,14 +46,17 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at").notNull(),
 });
 
+export type KeyProvider = "typesafe" | "vercel";
+
 export type RuleActions = { label?: string; star?: true; read?: true; archive?: true };
-export type RunScope = "new" | "recent" | "all";
+export type RunScope = "new" | "latest" | "recent" | "all";
 export type RunStatus = "queued" | "running" | "complete" | "failed" | "cancelled" | "paused";
 export type RuleSnapshot = { id: string; question: string; actions: RuleActions };
 
 export const settings = pgTable("settings", {
   userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
   keyCipher: text("key_cipher"),
+  keyProvider: text("key_provider").$type<KeyProvider>().notNull().default("typesafe"),
   threshold: integer("threshold").notNull().default(90),
   schedule: text("schedule").notNull().default("off"),
   nextRunAt: timestamp("next_run_at"),
@@ -97,6 +100,9 @@ export const runMessages = pgTable("run_messages", {
   id: text("id").primaryKey(),
   runId: text("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
   messageId: text("message_id").notNull(),
+  position: integer("position").notNull().default(0),
+  phase: text("phase").notNull().default("waiting"),
+  probabilities: jsonb("probabilities").$type<number[]>(),
   state: text("state").notNull().default("pending"),
   actions: jsonb("actions").$type<RuleActions>(),
   attempts: integer("attempts").notNull().default(0),

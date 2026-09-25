@@ -6,11 +6,12 @@
 - `src/app` owns Next pages/layouts/handlers. `src/components` owns interactive UI. `src/lib` holds shared server behavior and schema; `src/worker/index.ts` is only the process loop.
 - Server pages call Better Auth directly; `/` uses `dynamic = "force-dynamic"` and `await headers()`. Interactive modules explicitly declare `"use client"`. Client schema imports are type-only.
 - Mutations use one Zod discriminated command union in the API, then user-scoped DB queries or service calls. Client `Command` is a generic payload callback, not a generated/fully typed command client.
-- UI mutations refresh the server view after completion. Polling replaces the view; there are no optimistic DB updates. Local pending/error state lives in dialogs, while main-page actions use `act()`.
+- Most UI mutations refresh the server view after completion. Rule create/update applies the persisted response to local view state before the save animation; edit updates atomically close editing with the new rule so collapse geometry matches the saved values. Reordering optimistically updates local order and restores it on failure. Polling replaces the view. Local pending/error state lives in editors/dialogs, while main-page actions use `act()`.
 - `PublicError` contains intended user-facing messages; Gmail errors contain status-based messages. Most POST implementation errors become `Request failed`. Provider response bodies and message text are not intentionally logged.
+- Run review uses authenticated SSE snapshots backed by database state, not synthetic client progress. Email previews are fetched separately from Gmail and never stored; probabilities align with immutable run-rule order. Client code imports the progress response as types only.
 - DB schema types model JSON snapshots/actions. Transactions and unique keys protect run creation and candidate insertion; side effects are persisted before Gmail modification. Do not replace these with only in-memory state.
 - Global CSS classes style native controls and HeroUI compound components (`Tooltip.Trigger`/`Content`, `Button` with `onPress`). There is no generic local UI-kit folder.
-- Tests use Vitest, explicit mocks, and small fixtures. Unit tests mock provider/auth/DB boundaries; worker integration tests use real PostgreSQL with mocked external calls. Integration cleanup deletes every user in its selected database.
+- Tests use Vitest, explicit mocks, and small fixtures. Unit tests mock provider/auth/DB boundaries; worker integration tests use real PostgreSQL with mocked external calls. Integration cleanup deletes every user in its selected database. `vitest.config.mts` resolves the same `@/` source alias as Next so route handlers can be exercised with mocked auth/provider boundaries.
 
 ## Implemented today — framework reference and verification rules
 

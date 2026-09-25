@@ -1,10 +1,11 @@
 "use client";
-import { SelectField } from "./select-field";
+import { RunDialog } from "./run-dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button, Tooltip } from "@heroui/react";
-import { Archive, Check, MailOpen, Play, Star, Tag, Trash2 } from "lucide-react";
+import { Archive, Check, ToggleLeft, ToggleRight, MailOpen, Play, Star, Tag, Trash2 } from "lucide-react";
 import { HowItWorks } from "./how-it-works";
+import { collapseRule, expandRule } from "./rule-transition";
 import { moveSavedQuestion } from "./save-question-transition";
 import { ReorderHandle } from "./reorder-handle";
 import { QuestionComposer } from "./question-composer";
@@ -13,24 +14,35 @@ import { RuleEditor } from "./rule-editor";
 import { SettingsPanel } from "./settings-panel";
 import type { Command, Rule, View } from "./types";
 
-function ActionIcon({ label, children }: { label: string; children: React.ReactNode }) {
-  return <Tooltip><Tooltip.Trigger><span className="row-icon" role="img" aria-label={label} tabIndex={0}>{children}</span></Tooltip.Trigger><Tooltip.Content>{label}</Tooltip.Content></Tooltip>;
+function ActionIcon({ action, label, children }: { action: string; label: string; children: React.ReactNode }) {
+  return <Tooltip><Tooltip.Trigger><span className="row-icon selected" data-action={action} role="img" aria-label={label} tabIndex={0}>{children}</span></Tooltip.Trigger><Tooltip.Content>{label}</Tooltip.Content></Tooltip>;
 }
 
-function RuleRow({ rule, view, index, edit, move, remove, toggle }: {
+function RuleRow({ rule, view, index, edit, move, remove, toggle, expanded, command, close, saved, updated }: {
+  expanded: boolean; command: Command; close: () => void; saved: () => void; updated: (rule: Rule) => void;
   rule: Rule; view: View; index: number; edit: () => void; move: (offset: number) => void; remove: () => void; toggle: () => void;
 }) {
+  const rowRef = useRef<HTMLElement>(null);
   const labelName = view.labels.find((label) => label.id === rule.actions.label)?.name ?? "Label";
-  return <article data-rule-id={rule.id} className={`rule-row ${rule.enabled ? "" : "disabled"}`}>
+  if (expanded) return <article ref={rowRef} data-rule-id={rule.id} className="rule-row rule-row-expanded">
+    <div className="rule-edit-panel"><div className="rule-edit-content">
+      <RuleEditor rule={rule} labels={view.labels} command={command} close={close} saved={saved} onUpdated={async (result) => {
+        if (rowRef.current) await collapseRule(rowRef.current, () => updated(result));
+        else updated(result);
+      }}/>
+    </div></div>
+  </article>;
+  return <article ref={rowRef} data-rule-id={rule.id} className={`rule-row ${rule.enabled ? "" : "disabled"}`}>
     <ReorderHandle index={index} count={view.rules.length} move={move}/>
-    <button className="question-text" style={{ paddingRight: `calc(var(--row-control-space) + ${Object.values(rule.actions).filter(Boolean).length} * var(--row-action-space))` }} onClick={edit}>{rule.question}</button>
+    <button className="question-text" onClick={(event) => expandRule(event.currentTarget.closest<HTMLElement>(".rule-row")!, edit)}>{rule.question}</button>
     <div className="row-menu"><div className="row-actions">
-      {rule.actions.label && <ActionIcon label={`Apply ${labelName} label`}><Tag size={17}/></ActionIcon>}
-      {rule.actions.star && <ActionIcon label="Star"><Star size={17}/></ActionIcon>}
-      {rule.actions.read && <ActionIcon label="Mark read"><MailOpen size={17}/></ActionIcon>}
-      {rule.actions.archive && <ActionIcon label="Archive"><Archive size={17}/></ActionIcon>}
+      {rule.actions.label && <ActionIcon action="label" label={`Apply ${labelName} label`}><Tag size={17}/></ActionIcon>}
+      {rule.actions.star && <ActionIcon action="star" label="Star"><Star size={17}/></ActionIcon>}
+      {rule.actions.read && <ActionIcon action="read" label="Mark read"><MailOpen size={17}/></ActionIcon>}
+      {rule.actions.archive && <ActionIcon action="archive" label="Archive"><Archive size={17}/></ActionIcon>}
     </div>
-    <button className="toggle" aria-label={`${rule.enabled ? "Disable" : "Enable"} question ${index + 1}`} aria-pressed={rule.enabled} onClick={toggle}><span/></button><button className="delete-rule" aria-label={`Delete question ${index + 1}`} onClick={remove}><Trash2 size={16}/></button></div>
+    <Tooltip delay={200}><Button type="button" isIconOnly className="toggle" aria-label={`${rule.enabled ? "Disable" : "Enable"} question ${index + 1}`} aria-pressed={rule.enabled} onPress={toggle}>{rule.enabled ? <ToggleRight size={17} aria-hidden="true"/> : <ToggleLeft size={17} aria-hidden="true"/>}</Button><Tooltip.Content>Active</Tooltip.Content></Tooltip>
+    <Tooltip delay={200}><Button type="button" isIconOnly className="delete-rule" aria-label={`Delete question ${index + 1}`} onPress={remove}><Trash2 size={16}/></Button><Tooltip.Content>Delete</Tooltip.Content></Tooltip></div>
   </article>;
 }
 
@@ -44,7 +56,7 @@ export function MableApp({ email }: { email: string }) {
   const [editing, setEditing] = useState<Rule | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
-  const [scope, setScope] = useState("new");
+  const [reviewRunId, setReviewRunId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/mable", { cache: "no-store" });
@@ -109,26 +121,24 @@ export function MableApp({ email }: { email: string }) {
   if (!view) return <main className="shell"><div className="brand">mable<span>.</span></div><p className="muted">Loading your questions…</p>{error && <p className="error">{error}</p>}</main>;
   return <main className="shell app-shell">
     <header className="topbar"><div className="brand">mable<span>.</span></div><div className="header-actions">
-      {view.rules.length > 0 && <Button variant="ghost" isIconOnly aria-label="Run now" aria-haspopup="dialog" isDisabled={!view.settings.hasKey || !view.gmailConnected || !view.rules.some((rule) => rule.enabled)} onPress={() => setRunOpen(true)}><Play size={20}/></Button>}
-      <UserMenu email={email} openSettings={() => setSettingsOpen(true)} onError={setError}/>
+      {view.rules.length > 0 && <Button variant="ghost" isIconOnly aria-label="Run now" aria-haspopup="dialog" isDisabled={!view.settings.hasKey || !view.gmailConnected || !view.rules.some((rule) => rule.enabled)} onPress={() => { setReviewRunId(view.run && ["running", "queued", "paused", "failed"].includes(view.run.status) ? view.run.id : null); setRunOpen(true); }}><Play size={20}/></Button>}
+      <UserMenu openSettings={() => setSettingsOpen(true)} onError={setError}/>
     </div></header>
     <div className={`questions-content ${view.rules.length === 0 ? "questions-content-empty" : ""}`}>
-    {view.rules.length > 0 && <div className="rules">{view.rules.map((rule, index) => <RuleRow key={rule.id} rule={rule} view={view} index={index} edit={() => setEditing(rule)} move={(offset) => void move(index, offset)} remove={() => void act({ type: "rule.delete", id: rule.id })} toggle={() => void act({ type: "rule.update", id: rule.id, question: rule.question, actions: rule.actions, enabled: !rule.enabled })}/>)}</div>}
+    {view.rules.length > 0 && <div className="rules">{view.rules.map((rule, index) => <RuleRow key={rule.id} rule={rule} view={view} index={index} expanded={editing?.id === rule.id} command={command} close={() => setEditing(null)} saved={() => void refresh()} updated={(result) => {
+      setView((current) => current ? { ...current, rules: current.rules.map((item) => item.id === result.id ? result : item) } : current);
+      setEditing(null);
+    }} edit={() => setEditing(rule)} move={(offset) => void move(index, offset)} remove={() => void act({ type: "rule.delete", id: rule.id })} toggle={() => void act({ type: "rule.update", id: rule.id, question: rule.question, actions: rule.actions, enabled: !rule.enabled })}/>)}</div>}
     <QuestionComposer>
       <input ref={inputRef} disabled={saveAnimating} aria-label="New question" placeholder="Ask a question about your emails…" value={questionDraft} onChange={(event) => { setQuestionDraft(event.target.value); if (event.target.value.trim()) setActionsVisible(true); }} maxLength={500} />
       {actionsVisible && <RuleEditor onCreated={finishCreation} exiting={!questionDraft.trim()} onExited={() => { if (!questionDraft.trim()) setActionsVisible(false); }} inlineQuestion={questionDraft} labels={view.labels} command={command} close={() => {}} saved={(questionSaved) => { if (questionSaved) setQuestionDraft(""); void refresh(); }}/>}
     </QuestionComposer>
 
-    {editing && <div className="overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(null); }}><section className="panel" role="dialog" aria-modal="true" aria-label="Edit question"><RuleEditor rule={editing} labels={view.labels} command={command} close={() => setEditing(null)} saved={() => void refresh()} /></section></div>}
-    {view.run && <div className="run-status"><div><span className="status-title">{view.run.status === "complete" ? <Check size={16}/> : null}{view.run.status === "running" ? "Cleaning your inbox" : `Last run · ${view.run.status}`}</span><span className="muted">{view.run.processed} processed · {view.run.changed} changed · {view.run.skipped} skipped · {view.run.failed} failed</span>{view.run.error && <span className="error">{view.run.error}</span>}</div><div>{["queued", "running"].includes(view.run.status) && <Button variant="ghost" onPress={() => void act({ type: "run.cancel", id: view.run?.id })}>Cancel</Button>}{["failed", "paused"].includes(view.run.status) && <><Button variant="ghost" onPress={() => void act({ type: "run.cancel", id: view.run?.id })}>Discard</Button><Button variant="secondary" onPress={() => void act({ type: "run.retry", id: view.run?.id })}>Retry</Button></>}</div></div>}
+    {view.run && <div className="run-status"><div><span className="status-title">{view.run.status === "complete" ? <Check size={16}/> : null}{view.run.status === "running" ? "Cleaning your inbox" : `Last run · ${view.run.status}`}</span><span className="muted">{view.run.processed} processed · {view.run.changed} changed · {view.run.skipped} skipped · {view.run.failed} failed</span>{view.run.error && <span className="error">{view.run.error}</span>}</div><div><Button variant="ghost" onPress={() => { setReviewRunId(view.run!.id); setRunOpen(true); }}>{["queued", "running"].includes(view.run.status) ? "View progress" : "Review run"}</Button>{["queued", "running"].includes(view.run.status) && <Button variant="ghost" onPress={() => void act({ type: "run.cancel", id: view.run?.id })}>Cancel</Button>}{["failed", "paused"].includes(view.run.status) && <><Button variant="ghost" onPress={() => void act({ type: "run.cancel", id: view.run?.id })}>Discard</Button><Button variant="secondary" onPress={() => void act({ type: "run.retry", id: view.run?.id })}>Retry</Button></>}</div></div>}
     {error && <p className="error" role="alert">{error}</p>}
     </div>
     <footer>Questions stay yours. Email content is not saved by Mable. · <Link href="/privacy">Privacy</Link> · <HowItWorks/></footer>
-    {settingsOpen && <SettingsPanel view={view} command={command} close={() => setSettingsOpen(false)} changed={() => void refresh()}/>}
-    {runOpen && <div className="overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRunOpen(false); }}><section className="panel small-panel" role="dialog" aria-modal="true" aria-label="Run cleanup"><h2>Run cleanup</h2><p className="muted">Actions will be applied directly to matching emails.</p><div className="field-title" id="run-scope-label">Process</div><SelectField labelledBy="run-scope-label" value={scope} onChange={setScope} options={[
-      { id: "new", label: "New mail since connecting" },
-      { id: "recent", label: "Inbox mail from the last 30 days" },
-      { id: "all", label: "Entire inbox" },
-    ]}/><div className="modal-actions"><Button variant="ghost" onPress={() => setRunOpen(false)}>Cancel</Button><Button onPress={() => { setRunOpen(false); void act({ type: "run.create", scope }); }}><Play size={16}/> Start run</Button></div></section></div>}
+    {settingsOpen && <SettingsPanel email={email} view={view} command={command} close={() => setSettingsOpen(false)} changed={() => void refresh()}/>}
+    {runOpen && <RunDialog initialRunId={reviewRunId} labels={view.labels} command={command} changed={() => void refresh().catch(() => {})} close={() => setRunOpen(false)}/>}
   </main>;
 }

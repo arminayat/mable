@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { detectKeyProvider } from "@/lib/key-provider";
 import { encrypt } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { PublicError } from "@/lib/errors";
@@ -20,7 +21,7 @@ const command = z.discriminatedUnion("type", [
   z.object({ type: z.literal("key.set"), key: z.string().trim().min(10).max(500) }),
   z.object({ type: z.literal("key.remove") }),
   z.object({ type: z.literal("label.create"), name: z.string().trim().min(1).max(225) }),
-  z.object({ type: z.literal("run.create"), scope: z.enum(["new", "recent", "all"]) }),
+  z.object({ type: z.literal("run.create"), scope: z.enum(["new", "latest", "recent", "all"]) }),
   z.object({ type: z.literal("run.cancel"), id: z.string() }),
   z.object({ type: z.literal("run.retry"), id: z.string() }),
   z.object({ type: z.literal("account.delete") }),
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
   catch (error) { if (error instanceof GmailError && [401, 403].includes(error.status)) gmailConnected = false; }
   return Response.json({
     rules: ordered,
-    settings: { threshold: config[0]?.threshold ?? 90, schedule: config[0]?.schedule ?? "off", hasKey: !!config[0]?.keyCipher, pauseReason },
+    settings: { threshold: config[0]?.threshold ?? 90, schedule: config[0]?.schedule ?? "off", hasKey: !!config[0]?.keyCipher, keyProvider: config[0]?.keyProvider ?? "typesafe", pauseReason },
     run: latest[0] ?? null,
     labels: gmailLabels,
     gmailConnected,
@@ -106,9 +107,9 @@ export async function POST(request: Request) {
       const value = { threshold: input.threshold, schedule: input.schedule, nextRunAt: minutes ? new Date(Date.now() + minutes * 60_000) : null };
       await db.insert(settings).values({ userId, ...value }).onConflictDoUpdate({ target: settings.userId, set: value });
     } else if (input.type === "key.set") {
-      const keyCipher = encrypt(input.key);
-      await db.insert(settings).values({ userId, keyCipher, pauseReason: null })
-        .onConflictDoUpdate({ target: settings.userId, set: { keyCipher, pauseReason: null } });
+      const credential = { keyCipher: encrypt(input.key), keyProvider: detectKeyProvider(input.key), pauseReason: null };
+      await db.insert(settings).values({ userId, ...credential })
+        .onConflictDoUpdate({ target: settings.userId, set: credential });
     } else if (input.type === "key.remove") {
       await db.insert(settings).values({ userId }).onConflictDoNothing();
       await db.update(settings).set({ keyCipher: null, schedule: "off", nextRunAt: null }).where(eq(settings.userId, userId));

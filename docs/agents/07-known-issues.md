@@ -11,12 +11,12 @@ These are source observations, not claims of reproduced production incidents. Un
 - **Fix/workaround:** no explicit text-attachment filter is present. Existing test coverage proves PDF exclusion only; it does not establish a blanket guarantee.
 - **Planned/aspirational prevention:** add filename/disposition handling and MIME fixtures; reconcile disclosure against the actual parser (backlog).
 
-### K2 — custom dialogs lack focus and keyboard lifecycle (open)
+### K2 — Settings lacks focus and keyboard lifecycle (open; Run dialog improved in source)
 
-- **Symptom:** dialogs declare `aria-modal` but source provides no focus trap, focus restoration, or Escape close handler.
-- **Root cause:** custom overlays in `src/components/app.tsx` and `settings-panel.tsx`; no shared accessible dialog primitive.
-- **Fix/workaround:** visible close/cancel buttons and backdrop-click handlers exist; a keyboard-complete fix is not present.
-- **Planned/aspirational prevention:** use a suitable dialog primitive or implement/test the full lifecycle. Browser verification requires explicit user direction.
+- **Symptom:** Settings declares `aria-modal` without focus trapping/restoration or Escape close handling.
+- **Root cause:** the custom `settings-panel.tsx` overlay has no accessible dialog primitive.
+- **Fix/workaround:** Settings has visible close and backdrop handling. The new `RunDialog` focuses the panel, cycles Tab/Shift+Tab, closes on Escape, and restores the opener; its browser accessibility acceptance remains unverified.
+- **Planned/aspirational prevention:** use an accessible dialog primitive for Settings and verify portal/keyboard/focus behavior with user-authorized browser testing.
 
 ### K3 — transient Gmail errors can leave an apparently connected view (open)
 
@@ -46,6 +46,13 @@ These are source observations, not claims of reproduced production incidents. Un
 - **Fix:** selected icons retain action-colored fills and outer strokes. Only internal details use pale strokes/fills (archive handle/lid, mail fold, tag hole). Applying pale strokes to the entire SVG made the silhouette look smaller, as reported in a later user screenshot; the outer stroke is now preserved.
 - **Prevention:** differentiate internal details without removing the outer silhouette of selected icons. Source checked; browser verification was not performed.
 
+### K7 — reported hot reload interruption (cause unconfirmed)
+
+- **Symptom:** user reported changes not hot-reloading on localhost:3014.
+- **Evidence:** on 2026-09-25, the app terminal showed two manual dev-server restarts and successful prior recompiles. The current server was the correct checkout, returned HTTP 200, and the open page console reported `[HMR] connected` without errors after the latest restart.
+- **Cause/status:** no failing connection or compiler error was observed at inspection time; the earlier interruption is not explained by this snapshot.
+- **Recovery/prevention:** a dev-server restart and page refresh can reconnect the client, but do not treat that as a proven root-cause fix. Capture browser console and dev-server errors while the interruption is happening before changing bundler configuration.
+
 ## Implemented today — existing defenses and operational footguns
 
 | Symptom | Cause | Existing fix/workaround | Prevention / evidence / status |
@@ -55,8 +62,25 @@ These are source observations, not claims of reproduced production incidents. Un
 | Invalid model output would cause a decision | Missing/non-boolean/non-finite/out-of-range probability | `decide()` throws; worker retries then fails without applying an undecided action | Preserve validation and fail-closed tests. Handled in code. |
 | New-mail cancellation would strand discovered IDs | History advances during discovery | `cancelRun()` clears history for new scope; later reconciliation uses seen IDs | Do not discard seen IDs during retry/cancel. Integration test covers checkpoint reset. Handled in code. |
 | Run pauses or new run is rejected | Google/model 401/403, or unresolved failed/paused run | Reconnect Google or replace key; then Retry, or Discard; active/unfinished runs block creation | GET clears Google pause on successful access; key set clears pause; retry alone does not clear `settings.pauseReason`. Handled workflow. |
+| API queries fail after adding Gateway support | Updated schema selects `settings.key_provider` before the DB has migration `0001` | Apply `pnpm db:migrate` before starting updated web/worker; old keys backfill to TypeSafe without rewriting ciphertext | Additive upgrade checked on disposable PostgreSQL; local DB migrated, production pending. |
+| Updated live-review queries fail against an old schema | Missing migration `0002` columns | Apply `pnpm db:migrate` before running the updated web/worker; restart the worker | Disposable-DB migration and streamed worker integration tests cover the schema. Legacy scores remain unavailable. |
+| Review positions could overlap after interrupted discovery | Restarted discovery can return reordered/duplicate IDs; resetting the position counter would reuse slots | Preserve persisted IDs/positions and append unseen candidates densely | Covered by a restarted-discovery integration fixture; source fix, no production incident claimed. |
+| A last-50 run could grow after an interrupted discovery | Relisting on retry could append new arrivals to an already persisted 50-message selection | The latest scope reuses its existing single-batch snapshot whenever rows exist | Bounded discovery and interrupted-discovery integration fixtures cover the cap; no production incident claimed. |
 | Integration suite removes account data | Setup/teardown calls unfiltered `db.delete(user)` and FKs cascade | Run only against a disposable, migrated DB with explicit test credentials | `test:integration` loads `.env` if present; presence checks do not prove DB safety. Active test footgun. |
 | Host app cannot reach Compose DB using example URL | `.env.example` uses 5432, local Compose publishes 5433 | Use host port 5433 from host processes; containers use `db:5432` override | Distinguish host/container connection strings. Configuration footgun. |
 | Lease expiry permits overlapping execution | Lease/heartbeat has no owner fencing token | Deployment guidance supports one worker replica | Do not infer safe horizontal scaling from `SKIP LOCKED` alone. Limitation present; no multi-worker acceptance established. |
 
 Cancellation checks cannot undo a Gmail request already in flight. Account deletion also cannot retroactively undo Gmail actions. Treat this as the implemented boundary, not an immediate remote rollback guarantee.
+
+### K8 — expanded editor icon scaling and endpoint jumps (source fix; visual acceptance pending)
+
+- **Symptom:** user reported stepped phases and then persistent icon scaling glitches and a jump into the final position after the first timing revision.
+- **Cause (source inspection):** action badge clones retained the span’s start alignment while the final HeroUI buttons center their SVGs. Animating root/SVG width alone did not interpolate their internal alignment; replacing the clone with the real button exposed the offset. Separate CSS transitions and independently started animations could also conflict with the intended movement.
+- **Fix:** preserve overlapping ordered timing but animate the real destination controls and SVGs from measured source bounds. Independently compensate the nested SVG transform for button position/scale throughout the animation, share one timeline start, and finish at identity without an icon swap. Disable button CSS transitions only during expansion. The question retains its separate text layer.
+- **Prevention/status:** five geometry regression cases cover expansion and collapse at desktop/mobile sizes, including asymmetric SVG placement, at 61 points and verify exact final identity. Typecheck and focused lint pass. Browser visual acceptance has not been performed; source/mathematical checks do not establish rendered smoothness.
+
+### K9 — Settings select alignment and missing provider label (source fix)
+
+- **Symptom:** select text sat above the vertical center; the provider showed “Select an item” after the provider field was introduced.
+- **Cause (source inspection):** the taller Settings trigger retained library top-aligned content, and an already-open view could initialize the new provider draft without a value during hot reload.
+- **Fix/prevention:** explicitly center trigger/value content, default missing provider drafts to TypeSafe, and render the controlled option’s label in `SelectField`. Typecheck/lint verify component integration; browser rendering has not been tested.

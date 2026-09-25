@@ -4,8 +4,7 @@ import { Button, Dropdown } from "@heroui/react";
 import { LogOut, Settings2, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
-export function UserMenu({ email, openSettings, onError }: {
-  email: string;
+export function UserMenu({ openSettings, onError }: {
   openSettings: () => void;
   onError: (message: string) => void;
 }) {
@@ -20,9 +19,8 @@ export function UserMenu({ email, openSettings, onError }: {
   }
 
   return <Dropdown>
-    <Button variant="ghost" isIconOnly aria-label="User menu"><UserRound size={20}/></Button>
+    <Button className="user-menu-button" variant="ghost" isIconOnly aria-label="User menu"><UserRound size={20}/></Button>
     <Dropdown.Popover placement="bottom end" className="user-menu-popover">
-      <p className="user-menu-email">{email}</p>
       <Dropdown.Menu aria-label="Account">
         <Dropdown.Item id="settings" textValue="Settings" onAction={openSettings}><Settings2 size={16}/> Settings</Dropdown.Item>
         <Dropdown.Item id="logout" textValue="Log out" onAction={() => void logOut()}><LogOut size={16}/> Log out</Dropdown.Item>

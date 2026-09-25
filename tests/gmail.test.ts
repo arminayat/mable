@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/lib/auth", () => ({ auth: { api: {} } }));
 vi.mock("../src/lib/db", () => ({ db: {} }));
-import { addedSince, applyActions, contextOf, GmailError, inboxIds } from "../src/lib/gmail";
+import { addedSince, applyActions, contextOf, GmailError, inboxIds, preview } from "../src/lib/gmail";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -22,6 +22,32 @@ describe("Gmail boundary", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ history: [{ messagesAdded: [{ message: { id: "a" } }, { message: { id: "b" } }] }], historyId: "12" }), { status: 200 }));
     vi.stubGlobal("fetch", fetcher);
     expect(await addedSince("token", "10")).toEqual({ ids: ["a", "b"], historyId: "12" });
+  });
+  it("stops after the latest 50 inbox IDs without loading older pages", async () => {
+    const messages = Array.from({ length: 50 }, (_, index) => ({ id: `mail-${index}` }));
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ messages, nextPageToken: "older" })));
+    vi.stubGlobal("fetch", fetcher);
+    expect(await inboxIds("token", undefined, 50)).toEqual(messages.map(({ id }) => id));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const url = new URL(fetcher.mock.calls[0][0]);
+    expect(url.searchParams.get("maxResults")).toBe("50");
+    expect(url.searchParams.get("labelIds")).toBe("INBOX");
+    expect(url.searchParams.has("q")).toBe(false);
+  });
+  it("fills a short page up to the limit, ignoring duplicate IDs", async () => {
+    const messages = Array.from({ length: 60 }, (_, index) => ({ id: `mail-${index}` }));
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messages: messages.slice(0, 20), nextPageToken: "next" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messages: messages.slice(19), nextPageToken: "older" })));
+    vi.stubGlobal("fetch", fetcher);
+    expect(await inboxIds("token", undefined, 50)).toEqual(messages.slice(0, 50).map(({ id }) => id));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(new URL(fetcher.mock.calls[1][0]).searchParams.get("maxResults")).toBe("30");
+  });
+  it.each([0, 7])("handles an inbox with only %i emails", async (count) => {
+    const messages = Array.from({ length: count }, (_, index) => ({ id: `mail-${index}` }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ messages }))));
+    expect(await inboxIds("token", undefined, 50)).toHaveLength(count);
   });
   it("uses one message modification for combined actions", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "abc" }), { status: 200 }));
@@ -48,4 +74,14 @@ describe("Gmail boundary", () => {
     await expect(inboxIds("token")).rejects.toMatchObject({ status: 429 });
     expect(new GmailError(401).message).toContain("reconnection");
   });
+});
+
+it("loads bounded email previews as plain metadata without requesting full bodies", async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    snippet: "a".repeat(700), payload: { headers: [{ name: "SUBJECT", value: "Build passed" }, { name: "From", value: "bot@example.com" }] },
+  })));
+  vi.stubGlobal("fetch", fetcher);
+  expect(await preview("token", "mail/id")).toEqual({ subject: "Build passed", from: "bot@example.com", excerpt: "a".repeat(600) });
+  expect(fetcher.mock.calls[0][0]).toContain("/messages/mail%2Fid?format=metadata&metadataHeaders=Subject&metadataHeaders=From");
+  expect(fetcher.mock.calls[0][1].cache).toBe("no-store");
 });

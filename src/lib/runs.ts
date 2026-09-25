@@ -13,7 +13,7 @@ export async function createRun(userId: string, scope: RunScope) {
     const [unfinished] = await tx.select({ id: runs.id }).from(runs).where(and(eq(runs.userId, userId), inArray(runs.status, ["failed", "paused"]))).limit(1);
     if (unfinished) throw new PublicError("Retry or discard the previous run first");
     const [config] = await tx.select().from(settings).where(eq(settings.userId, userId)).limit(1);
-    if (!config?.keyCipher) throw new PublicError("Add your TypeSafe API key first");
+    if (!config?.keyCipher) throw new PublicError("Add your AI API key first");
     const ordered = await tx.select().from(rules).where(and(eq(rules.userId, userId), eq(rules.enabled, true))).orderBy(asc(rules.position));
     if (!ordered.length) throw new PublicError("Add an enabled question first");
     const snapshot: RuleSnapshot[] = ordered.map(({ id, question, actions }) => ({ id, question, actions }));
@@ -39,7 +39,7 @@ export async function retryRun(userId: string, id: string) {
     if (!run || !["failed", "paused"].includes(run.status)) throw new PublicError("Run cannot be retried");
     const [active] = await tx.select({ id: runs.id }).from(runs).where(and(eq(runs.userId, userId), inArray(runs.status, ["queued", "running"]))).limit(1);
     if (active) throw new PublicError("A run is already active");
-    await tx.update(runMessages).set({ state: "pending", attempts: 0, nextAttemptAt: null }).where(and(eq(runMessages.runId, id), eq(runMessages.state, "failed")));
+    await tx.update(runMessages).set({ state: "pending", phase: "waiting", attempts: 0, nextAttemptAt: null }).where(and(eq(runMessages.runId, id), eq(runMessages.state, "failed")));
     const [updated] = await tx.update(runs).set({ status: "queued", error: null, failed: 0, leaseUntil: null, updatedAt: new Date() }).where(eq(runs.id, id)).returning();
     return updated;
   });

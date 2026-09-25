@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "key_provider" text DEFAULT 'typesafe' NOT NULL;
