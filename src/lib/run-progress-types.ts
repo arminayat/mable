@@ -7,7 +7,6 @@ export type RunItem = {
 export type RunProgress = {
   id: string; status: RunStatus; discovered: boolean; error: string | null;
   total: number; processed: number; changed: number; skipped: number; failed: number;
-  threshold: number; rules: RuleSnapshot[];
-  page: number; pageCount: number; pageSize: number; items: RunItem[];
+  threshold: number; rules: RuleSnapshot[]; items: RunItem[];
 };
 export type EmailPreview = { subject: string; from: string; excerpt: string };

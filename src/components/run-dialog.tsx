@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
-import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { Play, X } from "lucide-react";
 import type { Command, Label, Run } from "./types";
 import { SelectField } from "./select-field";
 import { RunProgressView } from "./run-progress-view";
@@ -16,12 +16,12 @@ export function RunDialog({ initialRunId, labels, command, changed, close }: {
 }) {
   const [runId, setRunId] = useState(initialRunId);
   const [scope, setScope] = useState("new");
-  const [page, setPage] = useState<number | null>(null);
+  const [following, setFollowing] = useState(true);
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const panel = useRef<HTMLElement>(null);
-  const { progress, connection } = useRunStream(runId, page, version);
+  const { progress, connection } = useRunStream(runId, version);
   const active = progress && ["running", "queued"].includes(progress.status);
   const resumable = progress && ["failed", "paused"].includes(progress.status);
   const lastStatus = useRef(progress?.status);
@@ -68,22 +68,18 @@ export function RunDialog({ initialRunId, labels, command, changed, close }: {
           { id: "recent", label: "Inbox mail from the last 30 days" }, { id: "all", label: "Entire inbox" },
         ]}/>
         {error && <p className="error" role="alert">{error}</p>}
-        <div className="modal-actions"><Button variant="ghost" onPress={close}>Cancel</Button><Button isDisabled={busy} onPress={() => void start()}><Play size={16}/>{busy ? "Starting…" : "Start run"}</Button></div>
+        <div className="modal-actions"><Button variant="secondary" onPress={close}>Cancel</Button><Button variant="primary" isDisabled={busy} onPress={() => void start()}><Play size={16}/>{busy ? "Starting…" : "Start run"}</Button></div>
       </div> : <>
         <div className="run-progress-track" role="progressbar" aria-label="Emails processed" aria-valuemin={0} aria-valuemax={progress?.total || 1} aria-valuenow={progress?.discovered ? progress.processed : undefined} aria-valuetext={progress ? `${progress.processed} of ${progress.total} processed` : "Finding emails"}>
           <span style={{ width: `${progress?.total ? progress.processed / progress.total * 100 : progress?.status === "complete" ? 100 : 0}%` }}/>
         </div>
         <div className="run-review-toolbar"><span>{progress ? `${progress.changed} changed · ${progress.skipped} skipped · ${progress.failed} failed` : "Loading progress…"}</span>
-          {active && <Button size="sm" variant="ghost" onPress={() => setPage(page === null ? progress.page : null)}>{page === null ? "Pause following" : "Follow live"}</Button>}
+          {active && <Button size="sm" variant="ghost" onPress={() => setFollowing((value) => !value)}>{following ? "Pause following" : "Follow live"}</Button>}
         </div>
         {["reconnecting", "disconnected", "unavailable"].includes(connection) && <p className="run-connection-note" role="status">{connection === "unavailable" ? "This run is no longer available." : connection === "disconnected" ? "Could not connect to this run. Try reconnecting." : "Connection interrupted. Reconnecting…"}<button className="text-button" onClick={() => setVersion((current) => current + 1)}>Reconnect</button></p>}
         {(error || progress?.error) && <p className="error run-dialog-error" role="alert">{error || progress?.error}</p>}
-        {progress ? <RunProgressView progress={progress} labels={labels} following={page === null}/> : <div className="run-empty">Loading your run…</div>}
-        <div className="run-dialog-footer"><div className="run-pagination">
-          <Button variant="ghost" isIconOnly aria-label="Previous results" isDisabled={!progress || progress.page === 0} onPress={() => setPage(Math.max(0, (progress?.page ?? 0) - 1))}><ChevronLeft size={18}/></Button>
-          <span>{progress ? `Page ${progress.page + 1} of ${progress.pageCount}` : "…"}</span>
-          <Button variant="ghost" isIconOnly aria-label="Next results" isDisabled={!progress || progress.page + 1 >= progress.pageCount} onPress={() => setPage((progress?.page ?? 0) + 1)}><ChevronRight size={18}/></Button>
-        </div><div className="run-dialog-buttons">
+        {progress ? <RunProgressView progress={progress} labels={labels} following={following} pauseFollowing={() => setFollowing(false)}/> : <div className="run-empty">Loading your run…</div>}
+        <div className="run-dialog-footer"><div className="run-dialog-buttons">
           {active && <Button variant="ghost" isDisabled={busy} onPress={() => void update("run.cancel")}>Stop run</Button>}
           {resumable && <><Button variant="ghost" isDisabled={busy} onPress={() => void update("run.cancel")}>Discard</Button><Button isDisabled={busy} onPress={() => void update("run.retry")}>Retry run</Button></>}
           <Button variant="secondary" onPress={close}>{active ? "Close" : "Done"}</Button>

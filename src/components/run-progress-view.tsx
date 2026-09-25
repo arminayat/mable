@@ -11,11 +11,12 @@ const phaseNames: Record<string, string> = {
   retrying: "Waiting to retry", failed: "Failed", blocked: "Needs attention", skipped: "Skipped",
 };
 
-function EmailContent({ runId, item }: { runId: string; item: RunItem }) {
+function EmailContent({ runId, item, visible }: { runId: string; item: RunItem; visible: boolean }) {
   const [preview, setPreview] = useState<EmailPreview | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (!visible) return;
     const abort = new AbortController();
     fetch(`/api/mable/runs/${runId}/messages/${encodeURIComponent(item.messageId)}`, { cache: "no-store", signal: abort.signal })
       .then(async (response) => {
@@ -24,7 +25,7 @@ function EmailContent({ runId, item }: { runId: string; item: RunItem }) {
         setPreview(result); setError("");
       }).catch((cause) => { if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load email"); });
     return () => abort.abort();
-  }, [runId, item.messageId, attempt]);
+  }, [runId, item.messageId, attempt, visible]);
   if (error) return <div className="run-preview-error"><p>{error}</p><button className="text-button" onClick={() => { setError(""); setAttempt(attempt + 1); }}>Try again</button></div>;
   if (!preview) return <div className="run-preview-placeholder" aria-label="Loading email preview"><span/><span/><span/></div>;
   return <><h3>{preview.subject}</h3>{preview.from && <p className="run-email-from">{preview.from}</p>}<p className="run-email-excerpt">{preview.excerpt || "No preview available."}</p></>;
@@ -57,12 +58,32 @@ function Evaluation({ item, progress, labels }: { item: RunItem; progress: RunPr
   </>;
 }
 
-export function RunProgressView({ progress, labels, following }: { progress: RunProgress; labels: Label[]; following: boolean }) {
+export function RunProgressView({ progress, labels, following, pauseFollowing }: { progress: RunProgress; labels: Label[]; following: boolean; pauseFollowing: () => void }) {
   const list = useRef<HTMLDivElement>(null);
+  const requestedPreviews = useRef(new Set<string>());
+  const [visiblePreviews, setVisiblePreviews] = useState<Set<string>>(() => new Set());
   const active = ["running", "queued"].includes(progress.status);
   const current = progress.items.find((item) => ["loading", "evaluating", "applying"].includes(item.phase));
   const latest = current ?? progress.items.findLast((item) => item.state !== "pending");
-  useEffect(() => { list.current?.scrollTo({ top: 0, behavior: "instant" }); }, [progress.page]);
+  useEffect(() => {
+    const container = list.current;
+    if (!container) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      let changed = false;
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const id = entry.target.getAttribute("data-preview-id");
+        if (id && !requestedPreviews.current.has(id)) { requestedPreviews.current.add(id); changed = true; }
+        observer.unobserve(entry.target);
+      }
+      if (changed) setVisiblePreviews(new Set(requestedPreviews.current));
+    }, { root: container, rootMargin: "300px 0px" });
+    container.querySelectorAll<HTMLElement>("[data-preview-id]").forEach((element) => {
+      if (!requestedPreviews.current.has(element.dataset.previewId!)) observer.observe(element);
+    });
+    return () => observer.disconnect();
+  }, [progress.id, progress.items.length]);
   useEffect(() => {
     const container = list.current;
     const row = container?.querySelector<HTMLElement>(`[data-message-position="${latest?.position}"]`);
@@ -73,8 +94,9 @@ export function RunProgressView({ progress, labels, following }: { progress: Run
     const observer = new ResizeObserver(follow);
     observer.observe(container.querySelector(".run-review-list")!);
     return () => observer.disconnect();
-  }, [following, active, latest?.position, progress.page]);
-  return <div className="run-review-body" ref={list}>
+  }, [following, active, latest?.position]);
+  return <div className="run-review-body" ref={list} role="region" tabIndex={0} aria-label="Run results" onWheel={following ? pauseFollowing : undefined} onTouchStart={following ? pauseFollowing : undefined}
+    onKeyDown={(event) => { if (following && ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) pauseFollowing(); }}>
     <div className="run-column-headings" aria-hidden="true"><span>Email</span><span>Jev evaluation <small>Match at {progress.threshold}% · first match wins</small></span></div>
     <div className="run-review-list">
       {!progress.items.length && <div className="run-empty">{!progress.discovered && active ? <><LoaderCircle className="run-spinner" size={24}/><p>{progress.status === "queued" ? "Waiting for the worker…" : "Finding emails in Gmail…"}</p></> : <p>{progress.status === "complete" ? "No emails to process in this scope." : "No emails discovered yet."}</p>}</div>}
@@ -83,7 +105,7 @@ export function RunProgressView({ progress, labels, following }: { progress: Run
         const pending = ["pending", "decided"].includes(item.state);
         const phase = !active && pending ? (progress.status === "cancelled" ? "Stopped" : "Needs attention") : phaseNames[item.phase] ?? "Waiting";
         return <article key={item.id} className="run-review-item" data-message-position={item.position} data-processing={processing || undefined}>
-          <div className="run-email-preview"><div className="run-item-number">Email {item.position + 1}</div><EmailContent runId={progress.id} item={item}/></div>
+          <div className="run-email-preview" data-preview-id={item.id}><div className="run-item-number">Email {item.position + 1}</div><EmailContent runId={progress.id} item={item} visible={typeof IntersectionObserver === "undefined" || visiblePreviews.has(item.id)}/></div>
           <div className="run-evaluation"><div className="run-item-phase" data-state={item.state}>
             {processing ? <LoaderCircle size={14} className="run-spinner"/> : item.state === "done" ? <Check size={14}/> : null}{phase}
           </div><Evaluation item={item} progress={progress} labels={labels}/></div>

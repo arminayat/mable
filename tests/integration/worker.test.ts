@@ -318,8 +318,8 @@ describe("live run review", () => {
     expect((await (await request()).json()).runs.map((run: { id: string }) => run.id)).not.toContain(entries[21].id);
   });
 
-  function streamRequest(id: string, page = "") {
-    return streamProgress(new Request(`http://localhost:3014/api/mable/runs/${id}/events${page}`), { params: Promise.resolve({ id }) });
+  function streamRequest(id: string) {
+    return streamProgress(new Request(`http://localhost:3014/api/mable/runs/${id}/events`), { params: Promise.resolve({ id }) });
   }
   function previewRequest(id: string, messageId: string) {
     return emailPreview(new Request(`http://localhost:3014/api/mable/runs/${id}/messages/${messageId}`), { params: Promise.resolve({ id, messageId }) });
@@ -373,20 +373,24 @@ describe("live run review", () => {
     expect(replayText).not.toContain("tsk_testing_only");
   }, 10_000);
 
-  it("pages every result and follows activity without replacing a user's review page", async () => {
+  it("returns every result in order throughout a multi-batch run", async () => {
     const userId = await setup();
+    mock.session.mockResolvedValue({ user: { id: userId } });
     mock.inbox.mockResolvedValue(Array.from({ length: 25 }, (_, i) => `mail-${i}`));
     const run = await createRun(userId, "all");
     await workerTick();
-    const first = await getRunProgress(userId, run.id, 0);
-    expect(first).toMatchObject({ total: 25, processed: 20, page: 0, pageCount: 2 });
-    expect(first?.items).toHaveLength(20);
+    const first = await getRunProgress(userId, run.id);
+    expect(first).toMatchObject({ total: 25, processed: 20 });
+    expect(first?.items).toHaveLength(25);
+    expect(first?.items.at(-1)).toMatchObject({ messageId: "mail-24", phase: "waiting" });
+    const response = await streamRequest(run.id);
+    const reader = response.body!.getReader();
+    expect((await nextSnapshot(reader))?.items).toHaveLength(25);
+    await reader.cancel();
     await workerTick();
-    const live = await getRunProgress(userId, run.id);
-    expect(live).toMatchObject({ page: 1, processed: 25 });
-    expect(live?.items.map((item) => item.messageId)).toEqual(["mail-20", "mail-21", "mail-22", "mail-23", "mail-24"]);
-    expect((await getRunProgress(userId, run.id, 0))?.items[0].messageId).toBe("mail-0");
-    expect((await getRunProgress(userId, run.id, 999))?.page).toBe(1);
+    const complete = await getRunProgress(userId, run.id);
+    expect(complete).toMatchObject({ processed: 25 });
+    expect(complete?.items.map((item) => item.messageId)).toEqual(Array.from({ length: 25 }, (_, i) => `mail-${i}`));
     await db.update(rules).set({ question: "Edited later" }).where(eq(rules.userId, userId));
     expect((await getRunProgress(userId, run.id))?.rules[0].question).toBe("Is this GitHub mail?");
   });
@@ -405,8 +409,6 @@ describe("live run review", () => {
     expect((await previewRequest(run.id, "private-email")).status).toBe(404);
     mock.session.mockResolvedValue({ user: { id: owner } });
     expect((await previewRequest(run.id, "not-in-this-run")).status).toBe(404);
-    expect((await streamRequest(run.id, "?page=-1")).status).toBe(400);
-    expect((await streamRequest(run.id, "?page=1.1")).status).toBe(400);
     expect(mock.preview).not.toHaveBeenCalled();
   });
 

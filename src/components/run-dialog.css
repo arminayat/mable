@@ -5,8 +5,10 @@
 .run-dialog-header h2 { font-weight: 600; }
 .run-dialog button { border-radius: 12px; }
 .run-dialog-header > button { flex-shrink: 0; background: #f7f9fb; color: var(--muted); }
+.run-setup { display: flex; flex: 1; flex-direction: column; }
 .run-setup > p { margin: 6px 0 24px; font-size: 14px; }
 .run-setup .select-field { margin: 8px 0 24px; width: 100%; }
+.run-setup .modal-actions { margin-top: auto; }
 .run-progress-summary { margin: 8px 0 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .run-progress-summary strong { color: var(--ink); font-weight: 600; }
 .run-progress-track { height: 4px; flex-shrink: 0; background: #edf0f5; border-radius: 8px; overflow: hidden; margin-top: 20px; }
@@ -14,6 +16,7 @@
 .run-review-toolbar { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; flex-shrink: 0; }
 .run-review-toolbar button { font-size: 12px; color: var(--blue); }
 .run-review-body { position: relative; min-height: 0; flex: 1; border: 1px solid var(--line); border-radius: 16px; overflow-y: auto; overscroll-behavior: contain; animation: run-body-reveal 480ms ease both; }
+.run-review-body:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .run-column-headings { position: sticky; top: 0; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; background: #f7f9fb; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .run-column-headings > span { padding: 14px 18px; font-size: 13px; font-weight: 600; }
 .run-column-headings > span + span { border-left: 1px solid var(--line); }
@@ -48,9 +51,8 @@
 .run-preview-placeholder span:first-child { width: 65%; height: 15px; }
 .run-preview-placeholder span:last-child { width: 80%; }
 .run-empty { display: flex; flex: 1; min-height: 160px; align-items: center; justify-content: center; flex-direction: column; color: var(--muted); font-size: 14px; }
-.run-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 18px; flex-shrink: 0; }
-.run-pagination, .run-dialog-buttons { display: flex; align-items: center; gap: 6px; }
-.run-pagination { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.run-dialog-footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-top: 18px; flex-shrink: 0; }
+.run-dialog-buttons { display: flex; align-items: center; gap: 6px; }
 .run-dialog-buttons > button { font-size: 13px; }
 .run-connection-note, .run-dialog-error { font-size: 13px; margin: 0 0 12px; flex-shrink: 0; }
 .run-connection-note .text-button { margin-left: 12px; padding: 0; }

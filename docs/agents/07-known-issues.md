@@ -91,3 +91,10 @@ Cancellation checks cannot undo a Gmail request already in flight. Account delet
 - **Established cause of no actions:** validated probabilities were below the run threshold; this was not an earlier rule winning or a recorded processing failure. Why the model assigned those probabilities is not captured. A narrow invoice question versus broader receipt/billing intent is a hypothesis, not a model explanation.
 - **Context boundary:** the app sends `state.email` with from/to/subject/date/owner/body and each rule question verbatim. Only the normalized body is capped at 20,000 characters. PDF contents, attachment names and current Gmail labels are absent. Review excerpts are Gmail snippets, not a capture of the evaluated body. Exact historical request bodies are intentionally not persisted.
 - **Fix/status:** no rule, threshold, parser, run or Gmail labels were changed during diagnosis. Clarify intended invoice/receipt/billing categories and validate representative examples before changing thresholds. HTML/MIME cleanup limitations are tracked in K1; no causal attribution to truncation was established for this run.
+
+### K11 — run review jumped between result pages (source fix; visual acceptance pending)
+
+- **Symptom:** the user reported that result pages damaged the live run-review experience; earlier emails disappeared when following moved to a newer page.
+- **Cause:** progress snapshots contained only 20 rows and the dialog selected the page around the active email, with Previous/Next controls for older results.
+- **Fix:** stream all ordered result rows for a run into one continuous scroll list. Keep live-follow as an independent toggle, pause it on manual scrolling, and start Gmail preview requests only when rows approach the viewport.
+- **Prevention/status:** the disposable-database integration fixture checks a 25-email run both before and after the second worker batch, including the SSE snapshot. Source checks passed; rendered scrolling and very large inbox performance have not been browser-tested. Full snapshots scale with run size and are a future performance consideration.

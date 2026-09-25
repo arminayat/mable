@@ -10,10 +10,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return new Response("Unauthorized", { status: 401 });
   const { id } = await context.params;
-  const pageValue = new URL(request.url).searchParams.get("page");
-  const page = pageValue === null ? undefined : Number(pageValue);
-  if (page !== undefined && (!Number.isSafeInteger(page) || page < 0)) return new Response("Invalid page", { status: 400 });
-  const initial = await getRunProgress(session.user.id, id, page);
+  const initial = await getRunProgress(session.user.id, id);
   if (!initial) return new Response("Run not found", { status: 404 });
   const abort = new AbortController();
   const onAbort = () => abort.abort();
@@ -40,7 +37,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
           } else controller.enqueue(encoder.encode(': heartbeat\n\n'));
           if (!["running", "queued"].includes(snapshot.status)) break;
           await delay(1000, undefined, { signal: abort.signal });
-          snapshot = await getRunProgress(session.user.id, id, page);
+          snapshot = await getRunProgress(session.user.id, id);
         }
       } catch {
         if (!abort.signal.aborted) controller.enqueue(encoder.encode('event: interrupted\ndata: {}\n\n'));

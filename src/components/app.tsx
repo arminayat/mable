@@ -4,7 +4,7 @@ import { RunHistoryDialog } from "./run-history-dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button, Tooltip } from "@heroui/react";
-import { Archive, Check, History, ToggleLeft, ToggleRight, MailOpen, Play, Star, Tag, Trash2 } from "lucide-react";
+import { Archive, History, ToggleLeft, ToggleRight, MailOpen, Play, Star, Tag, Trash2 } from "lucide-react";
 import { HowItWorks } from "./how-it-works";
 import { collapseRule, expandRule } from "./rule-transition";
 import { moveSavedQuestion } from "./save-question-transition";
@@ -137,7 +137,6 @@ export function MableApp({ email }: { email: string }) {
       {actionsVisible && <RuleEditor onCreated={finishCreation} exiting={!questionDraft.trim()} onExited={() => { if (!questionDraft.trim()) setActionsVisible(false); }} inlineQuestion={questionDraft} labels={view.labels} command={command} close={() => {}} saved={(questionSaved) => { if (questionSaved) setQuestionDraft(""); void refresh(); }}/>}
     </QuestionComposer>
 
-    {view.run && <div className="run-status"><div><span className="status-title">{view.run.status === "complete" ? <Check size={16}/> : null}{view.run.status === "running" ? "Cleaning your inbox" : `Last run · ${view.run.status}`}</span><span className="muted">{view.run.processed} processed · {view.run.changed} changed · {view.run.skipped} skipped · {view.run.failed} failed</span>{view.run.error && <span className="error">{view.run.error}</span>}</div><div><Button variant="ghost" onPress={() => { setReviewRunId(view.run!.id); setRunOpen(true); }}>{["queued", "running"].includes(view.run.status) ? "View progress" : "Review run"}</Button>{["queued", "running"].includes(view.run.status) && <Button variant="ghost" onPress={() => void act({ type: "run.cancel", id: view.run?.id })}>Cancel</Button>}{["failed", "paused"].includes(view.run.status) && <><Button variant="ghost" onPress={() => void act({ type: "run.cancel", id: view.run?.id })}>Discard</Button><Button variant="secondary" onPress={() => void act({ type: "run.retry", id: view.run?.id })}>Retry</Button></>}</div></div>}
     {error && <p className="error" role="alert">{error}</p>}
     </div>
     <footer>Questions stay yours. Email content is not saved by Mable. · <Link href="/privacy">Privacy</Link> · <HowItWorks/></footer>
