@@ -14,9 +14,9 @@ The app has four actions: apply a Gmail label, star, mark read, and archive. A m
 ## Local setup
 
 1. Copy `.env.example` to `.env`. Set `DATABASE_URL` to a dedicated PostgreSQL database. Generate `BETTER_AUTH_SECRET` with `openssl rand -hex 32` and `CREDENTIAL_ENCRYPTION_KEY` with `openssl rand -base64 32`. Keep both stable after deployment.
-2. In Google Cloud, enable the Gmail API and configure the OAuth consent screen. Add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI. Set the client ID and secret in `.env`. For development, add your Google account as an OAuth test user.
+2. In Google Cloud, enable the Gmail API and configure the OAuth consent screen. Add `http://localhost:3014/api/auth/callback/google` as an authorized redirect URI. Set the client ID and secret in `.env`. For development, add your Google account as an OAuth test user.
 3. Run `pnpm install`, then `pnpm db:migrate`.
-4. Start `pnpm dev` and `pnpm worker` in separate terminals. Open `http://localhost:3000`, sign in with Google, and enter your TypeSafe key in Settings.
+4. Start `pnpm dev` and `pnpm worker` in separate terminals. Open `http://localhost:3014`, sign in with Google, and enter your TypeSafe key in Settings.
 
 The worker uses `.env` if present. The web app loads it through Next.js. To run PostgreSQL through Compose, use `docker compose up --build`; the database is exposed locally on port 5433, and the containers share the `db` hostname. Compose runs migrations before starting web and worker services. Run only one worker replica in this version.
 
