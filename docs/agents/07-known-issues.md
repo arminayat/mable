@@ -111,4 +111,11 @@ Cancellation checks cannot undo a Gmail request already in flight. Account delet
 - **Symptom (2026-10-17):** default `pnpm build` first failed to fetch the existing Inter font from Google Fonts. A network-enabled retry then failed during CSS processing with a Turbopack helper port-bind `Operation not permitted` error.
 - **Cause:** build-time network/local-port restrictions in the execution environment; the reported CSS entry was the existing `run-history-dialog.css`. These errors do not establish an application-source failure.
 - **Workaround/status:** `pnpm exec next build --webpack` passed compilation, TypeScript, page generation and build traces as a separate supported check; this does not establish default Turbopack success. Do not change product bundler configuration merely to mask this environment restriction.
-- **Prevention:** keep type/lint/unit/DB checks distinct from production bundle validation and run the default build in an environment permitting its font download and CSS helper process. No deployment acceptance is inferred.
+- **Prevention:** keep type/lint/unit/DB checks distinct from production bundle validation and run the default build in an environment permitting its font download and CSS helper process. GitHub CI 39057116393 passed the default Turbopack build for commit `3f92007`; the restriction was local to this execution environment.
+
+### K14 — push does not currently trigger Coolify deployment (verified configuration)
+
+- **Symptom (2026-10-17):** pushing `3f92007` completed GitHub CI but created no Coolify deployment; the latest deployment remained the September 25 manual release.
+- **Cause:** Coolify shows Auto deploy = Deploy on push, but Mable uses a Public GitHub Repository source, and the GitHub repository hooks API returned an empty list. The toggle alone does not establish webhook delivery.
+- **Workaround:** deploy the verified main revision manually in Coolify. Automatic push deployment needs a connected GitHub integration or correctly configured webhook; neither was added in this task.
+- **Prevention/status:** verify a deployment record against the pushed SHA rather than assuming a successful push or CI run means deployment. Automatic deployment wiring remains open.
