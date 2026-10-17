@@ -21,6 +21,8 @@ Server modules hold credentials and DB/provider access. Client components own lo
 
 Run review reads durable per-message phases, probabilities and actions through `run-progress.ts`. The SSE route polls PostgreSQL every second, sends changed snapshots containing all ordered result rows and aggregate counts, heartbeats unchanged snapshots, and reconnects after 50 seconds to reauthorize. There is no in-memory event broker. The client keeps one continuous list and fetches Gmail metadata previews as rows approach the scroll viewport, with no-store responses; previews remain transient client state and are not persisted.
 
+The shared `schedule.ts` defines interval presets; `preferences.ts` saves preferences without postponing unchanged schedules. `scheduler.ts` locks and rereads each due account, queues its new-mail run and advances its deadline in one transaction. Expected setup/run conflicts defer until the next interval; unexpected failures roll back for the next worker tick. Missed intervals produce at most one run, with no catch-up burst.
+
 Run snapshots isolate in-flight decisions from subsequent rule/threshold edits. Rule creation/reordering and run creation/retry use PostgreSQL transaction advisory locks keyed by user ID. The worker claims with `FOR UPDATE SKIP LOCKED`, uses a ten-minute lease and minute heartbeat, and retains decisions across retries. The supported deployment described in README uses one worker; there is no lease-owner fencing token.
 
 Six application environment variables cover DB, auth URL/secret, Google client ID/secret, and credential encryption. AI provider keys are per-user encrypted database records paired with `keyProvider`, not environment variables. See `operations.md` and `security-access.md` for exact boundaries.

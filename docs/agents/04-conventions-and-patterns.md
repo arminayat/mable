@@ -11,7 +11,7 @@
 - Run review uses authenticated SSE snapshots backed by database state, not synthetic client progress. Email previews are fetched separately from Gmail and never stored; probabilities align with immutable run-rule order. Client code imports the progress response as types only.
 - DB schema types model JSON snapshots/actions. Transactions and unique keys protect run creation and candidate insertion; side effects are persisted before Gmail modification. Do not replace these with only in-memory state.
 - Global CSS classes style native controls and HeroUI compound components (`Tooltip.Trigger`/`Content`, `Button` with `onPress`). There is no generic local UI-kit folder.
-- Tests use Vitest, explicit mocks, and small fixtures. Unit tests mock provider/auth/DB boundaries; worker integration tests use real PostgreSQL with mocked external calls. Integration cleanup deletes every user in its selected database. `vitest.config.mts` resolves the same `@/` source alias as Next so route handlers can be exercised with mocked auth/provider boundaries.
+- Tests use Vitest, explicit mocks, and small fixtures. Unit tests mock provider/auth/DB boundaries; worker integration tests use real PostgreSQL with mocked external calls. Integration cleanup deletes every user in its selected database. Run the integration directory with `--no-file-parallelism` so worker and scheduler suites cannot delete each other's fixtures. `vitest.config.mts` resolves the same `@/` source alias as Next so route handlers can be exercised with mocked auth/provider boundaries.
 
 ## Implemented today — framework reference and verification rules
 

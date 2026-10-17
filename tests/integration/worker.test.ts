@@ -54,6 +54,21 @@ beforeEach(async () => {
 afterAll(async () => { await db.delete(user); await pool.end(); });
 
 describe("durable worker", () => {
+  it("runs due hourly actions and skips already-seen mail on later checks", async () => {
+    const userId = await setup();
+    mock.inbox.mockResolvedValue(["scheduled-mail"]);
+    await db.update(settings).set({ schedule: "1h", nextRunAt: new Date(Date.now() - 1000) }).where(eq(settings.userId, userId));
+    await workerTick();
+    expect(await db.select().from(runs)).toMatchObject([{ userId, scope: "new", status: "complete", changed: 1 }]);
+    expect(mock.apply).toHaveBeenCalledExactlyOnceWith("google-token", "scheduled-mail", { star: true, archive: true });
+    mock.history.mockResolvedValue({ ids: ["scheduled-mail", "new-arrival"], historyId: "501" });
+    await db.update(settings).set({ nextRunAt: new Date(Date.now() - 1000) }).where(eq(settings.userId, userId));
+    await workerTick();
+    expect(await db.select().from(runs)).toHaveLength(2);
+    expect(mock.apply).toHaveBeenCalledTimes(2);
+    expect(mock.apply).toHaveBeenLastCalledWith("google-token", "new-arrival", { star: true, archive: true });
+  });
+
   it("snapshots all candidates and applies one action set per message", async () => {
     const userId = await setup();
     mock.inbox.mockResolvedValue(["first", "second"]);

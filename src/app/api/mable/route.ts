@@ -8,16 +8,19 @@ import { PublicError } from "@/lib/errors";
 import { createLabel, GmailError, googleToken, labels } from "@/lib/gmail";
 import { cancelRun, createRun, retryRun } from "@/lib/runs";
 import { mailbox, rules, runs, settings, user } from "@/lib/schema";
+import { schedules } from "@/lib/schedule";
+import { updatePreferences } from "@/lib/preferences";
 
 const actions = z.object({ label: z.string().min(1).optional(), star: z.literal(true).optional(), read: z.literal(true).optional(), archive: z.literal(true).optional() })
   .refine((value) => Object.values(value).some(Boolean), "Choose at least one action");
-const schedule = z.enum(["off", "15m", "1h", "24h"]);
+const schedule = z.enum(schedules);
 const command = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rule.create"), question: z.string().trim().min(3).max(500), actions, enabled: z.boolean() }),
   z.object({ type: z.literal("rule.update"), id: z.string(), question: z.string().trim().min(3).max(500), actions, enabled: z.boolean() }),
   z.object({ type: z.literal("rule.delete"), id: z.string() }),
   z.object({ type: z.literal("rule.reorder"), ids: z.array(z.string()) }),
-  z.object({ type: z.literal("settings.update"), threshold: z.number().int().min(50).max(100), schedule }),
+  z.object({ type: z.literal("settings.update"), threshold: z.number().int().min(50).max(100), schedule: schedule.optional() }),
+  z.object({ type: z.literal("schedule.update"), schedule }),
   z.object({ type: z.literal("key.set"), key: z.string().trim().min(10).max(500) }),
   z.object({ type: z.literal("key.remove") }),
   z.object({ type: z.literal("label.create"), name: z.string().trim().min(1).max(225) }),
@@ -59,7 +62,7 @@ export async function GET(request: Request) {
   catch (error) { if (error instanceof GmailError && [401, 403].includes(error.status)) gmailConnected = false; }
   return Response.json({
     rules: ordered,
-    settings: { threshold: config[0]?.threshold ?? 90, schedule: config[0]?.schedule ?? "off", hasKey: !!config[0]?.keyCipher, keyProvider: config[0]?.keyProvider ?? "typesafe", pauseReason },
+    settings: { threshold: config[0]?.threshold ?? 90, schedule: config[0]?.schedule ?? "off", nextRunAt: config[0]?.nextRunAt ?? null, hasKey: !!config[0]?.keyCipher, keyProvider: config[0]?.keyProvider ?? "typesafe", pauseReason },
     run: latest[0] ?? null,
     labels: gmailLabels,
     gmailConnected,
@@ -102,10 +105,8 @@ export async function POST(request: Request) {
         if (own.length !== input.ids.length || new Set(input.ids).size !== own.length || !own.every((rule) => input.ids.includes(rule.id))) throw new PublicError("Invalid rule order");
         for (let index = 0; index < input.ids.length; index++) await tx.update(rules).set({ position: index }).where(and(eq(rules.id, input.ids[index]), eq(rules.userId, userId)));
       });
-    } else if (input.type === "settings.update") {
-      const minutes = { off: 0, "15m": 15, "1h": 60, "24h": 1440 }[input.schedule];
-      const value = { threshold: input.threshold, schedule: input.schedule, nextRunAt: minutes ? new Date(Date.now() + minutes * 60_000) : null };
-      await db.insert(settings).values({ userId, ...value }).onConflictDoUpdate({ target: settings.userId, set: value });
+    } else if (input.type === "settings.update" || input.type === "schedule.update") {
+      await updatePreferences(userId, input);
     } else if (input.type === "key.set") {
       const credential = { keyCipher: encrypt(input.key), keyProvider: detectKeyProvider(input.key), pauseReason: null };
       await db.insert(settings).values({ userId, ...credential })

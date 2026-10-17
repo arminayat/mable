@@ -23,6 +23,8 @@ User-linked tables cascade on user deletion; run-message rows cascade through ru
 
 `RuleActions` is `{ label?: string; star?: true; read?: true; archive?: true }`. API validation requires an action, validates selected Gmail label IDs, and checks question length/threshold/schedule. Database text/JSON columns do not independently enforce all application enums or validation.
 
+Scheduling reuses existing `settings.schedule` and `next_run_at` columns; no migration is needed. Valid intervals are off/15m/1h/24h. Enabling/changing starts one interval from save time; unchanged intervals retain their deadline, and off stores null. Due checks take the user advisory lock and settings row lock, reread current settings, and atomically queue a new-mail run and advance the deadline from the current check time. Paused accounts are excluded; blocked setup/unfinished runs defer until the next interval. Unexpected failures roll back. These locks protect scheduling, not multi-worker message execution leases.
+
 Runs use scopes `new | latest | recent | all` and statuses `queued | running | complete | failed | cancelled | paused`. Creation snapshots enabled questions ordered by position and the current threshold. It blocks queued/running and unresolved failed/paused runs for that user under an advisory lock. This is application enforcement, not a partial unique DB constraint.
 
 Run messages move from `pending` to `decided` (actions saved), then `done`; unmatched/non-inbox/missing messages become `skipped`; repeated errors become `failed`. Retry resets failed messages to pending with zero attempts, retaining any saved actions. A saved decision bypasses reevaluation, including when a previous archive removed INBOX.

@@ -3,7 +3,7 @@ import { decrypt } from "./crypto";
 import { db, pool } from "./db";
 import { addedSince, applyActions, contextOf, GmailError, googleToken, inboxIds, message, profile } from "./gmail";
 import { decide } from "./decide";
-import { createRun } from "./runs";
+import { scheduleDue } from "./scheduler";
 import { type KeyProvider, mailbox, newMailSeen, runMessages, runs, settings, user } from "./schema";
 
 type Run = typeof runs.$inferSelect;
@@ -24,17 +24,6 @@ async function claimRun(): Promise<Run | undefined> {
     rulesSnapshot: (row as unknown as { rules_snapshot: Run["rulesSnapshot"] }).rules_snapshot,
     leaseUntil: (row as unknown as { lease_until: Date }).lease_until,
   };
-}
-
-async function scheduleDue() {
-  const due = await db.select().from(settings).where(and(
-    inArray(settings.schedule, ["15m", "1h", "24h"]), lte(settings.nextRunAt, new Date()), isNull(settings.pauseReason),
-  ));
-  for (const config of due) {
-    const interval = { "15m": 15, "1h": 60, "24h": 1440 }[config.schedule] ?? 60;
-    try { await createRun(config.userId, "new"); } catch { /* Existing run or incomplete setup: try at the next preset interval. */ }
-    await db.update(settings).set({ nextRunAt: new Date(Date.now() + interval * 60_000) }).where(eq(settings.userId, config.userId));
-  }
 }
 
 async function discover(run: Run, token: string) {

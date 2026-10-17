@@ -5,11 +5,14 @@ import { Button } from "@heroui/react";
 import { Check, Trash2, X } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { detectKeyProvider } from "@/lib/key-provider";
+import { scheduleOptions, type Schedule } from "@/lib/schedule";
+import { ScheduleStatus } from "./schedule-control";
 import type { Command, View } from "./types";
 
 export function SettingsPanel({ email, view, command, close, changed }: { email: string; view: View; command: Command; close: () => void; changed: () => void }) {
   const [threshold, setThreshold] = useState(String(view.settings.threshold));
   const [schedule, setSchedule] = useState(view.settings.schedule);
+  const [scheduleChanged, setScheduleChanged] = useState(false);
   const [key, setKey] = useState("");
   const provider = key.trim() ? detectKeyProvider(key) : view.settings.keyProvider ?? "typesafe";
   const [confirm, setConfirm] = useState(false);
@@ -37,7 +40,7 @@ export function SettingsPanel({ email, view, command, close, changed }: { email:
         <p>Stored encrypted. Evaluations use your {provider === "vercel" ? "Vercel AI Gateway" : "TypeSafe"} account.</p>
         {view.settings.hasKey && provider !== view.settings.keyProvider && <p>Saving replaces your current provider and key.</p>}
         <div className="setting-row"><input id="ai-key" aria-label={`${provider === "vercel" ? "Vercel AI Gateway" : "TypeSafe"} API key`} type="password" autoComplete="off" disabled={busy} value={key} onChange={(event) => setKey(event.target.value)} placeholder={view.settings.hasKey && provider === view.settings.keyProvider ? "Key saved · enter a replacement" : "Paste your API key"}/><Button isDisabled={busy || key.trim().length < 10} onPress={async () => { if (await submit({ type: "key.set", key })) setKey(""); }}>Save key</Button></div>
-        {view.settings.hasKey && <button className="text-button" disabled={busy} onClick={() => void submit({ type: "key.remove" })}>Remove saved {view.settings.keyProvider === "vercel" ? "Vercel AI Gateway" : "TypeSafe"} key</button>}
+        {view.settings.hasKey && <button className="text-button" disabled={busy} onClick={async () => { if (await submit({ type: "key.remove" })) { setSchedule("off"); setScheduleChanged(false); } }}>Remove saved {view.settings.keyProvider === "vercel" ? "Vercel AI Gateway" : "TypeSafe"} key</button>}
       </div>
       <div className="setting-block threshold-setting"><div className="threshold-heading"><label className="setting-heading" htmlFor="threshold">Match threshold (%)</label>
         <p id="threshold-description">Minimum confidence for a match. Higher is more selective.</p></div>
@@ -45,12 +48,12 @@ export function SettingsPanel({ email, view, command, close, changed }: { email:
       </div>
       <div className="setting-block schedule-setting"><div className="setting-heading" id="schedule-label">Automatic cleanup</div>
         <p>Choose how often to check new inbox mail.</p>
-        <SelectField labelledBy="schedule-label" value={schedule} onChange={setSchedule} options={[
-          { id: "off", label: "Off" }, { id: "15m", label: "Every 15 minutes" },
-          { id: "1h", label: "Hourly" }, { id: "24h", label: "Every 24 hours" },
-        ]}/>
+        <SelectField labelledBy="schedule-label" value={scheduleChanged ? schedule : view.settings.schedule} onChange={(value) => { setSchedule(value as Schedule); setScheduleChanged(true); }} options={scheduleOptions} disabled={busy}/>
+        <ScheduleStatus view={view}/>
       </div>
-      <div className="settings-actions"><Button isDisabled={busy || !validThreshold} onPress={() => void submit({ type: "settings.update", threshold: thresholdValue, schedule })}>Save preferences</Button></div>
+      <div className="settings-actions"><Button isDisabled={busy || !validThreshold} onPress={async () => {
+        if (await submit({ type: "settings.update", threshold: thresholdValue, ...(scheduleChanged ? { schedule } : {}) })) setScheduleChanged(false);
+      }}>Save preferences</Button></div>
       {view.settings.pauseReason && <p className="error" role="alert">{view.settings.pauseReason}</p>}
       {error && <p className="error" role="alert">{error}</p>}
       <div className="setting-block account-block"><h3>Delete account</h3>

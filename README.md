@@ -2,7 +2,7 @@
 
 Mable asks simple questions about Gmail messages and applies the actions attached to the first confident match. It uses [Jev through the AI SDK](https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai). You supply your own TypeSafe or Vercel AI Gateway API key. Mable is free and open source under the MIT license.
 
-The app has four actions: apply a Gmail label, star, mark read, and archive. A manual run can process newly received mail, the last 50 inbox emails, the last 30 days of inbox mail, or the entire inbox. Automatic runs check newly received inbox mail every 15 minutes, hourly, or every 24 hours. Schedules are off by default.
+The app has four actions: apply a Gmail label, star, mark read, and archive. A manual run can process newly received mail, the last 50 inbox emails, the last 30 days of inbox mail, or the entire inbox. Automatic runs check newly received inbox mail every 15 minutes, hourly, or every 24 hours. Schedules are off by default. Choose **Schedule** in the header, select **Every hour** (or another preset), and save. The dialog shows the next check or what needs attention; Settings offers the same control. The first check starts after one interval, and automatic runs continue with the browser closed while the worker is running. Turning a schedule off does not stop a run already queued or running.
 
 Starting a manual run expands the dialog into a live review: processed/total progress, email previews on the left, and Jev confidence scores plus Gmail actions on the right. Follow the current email or browse 20-email pages; completed results stay open and the latest run can be reopened. Closing the dialog does not stop cleanup.
 

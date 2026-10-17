@@ -8,10 +8,10 @@ All user ownership comes from the session, never a supplied user ID. Routes are 
 
 ## Implemented today — GET `/api/mable`
 
-Response: `{ rules, settings: { threshold, schedule, hasKey, keyProvider, pauseReason }, run, labels, gmailConnected }`.
+Response: `{ rules, settings: { threshold, schedule, nextRunAt, hasKey, keyProvider, pauseReason }, run, labels, gmailConnected }`.
 
 - `rules`: full own DB rows ordered by position. `run`: newest full run row or null; dates serialize as strings. The narrower UI shapes are in `src/components/types.ts`.
-- `settings`: defaults to 90/off/false/typesafe/null without a stored row; never returns `keyCipher` or plaintext credentials.
+- `settings`: defaults to threshold 90, schedule off, nextRunAt null, hasKey false, keyProvider typesafe and pauseReason null without a stored row; `nextRunAt` is an ISO timestamp or null; never returns `keyCipher` or plaintext credentials.
 - `labels`: Gmail user labels `{ id, name }`; no system-label options.
 - Successful Gmail access can create mailbox state and clear a `Reconnect Google` pause reason. Gmail 401/403 marks disconnected; other label errors are hidden (known issue K3).
 - Session/DB failures outside the Gmail catch have no custom JSON error wrapper.
@@ -26,7 +26,8 @@ Every payload includes `type`. Actions use `{ label?: string, star?: true, read?
 | `rule.update` | Same + `id` string | Update own rule; returns one rule; missing/not-owned rule gives `Rule not found`. |
 | `rule.delete` | `id` | Delete matching own rule; `{ ok: true }` even if no match. |
 | `rule.reorder` | `ids: string[]` | Must contain every own rule exactly once; transaction writes positions; `{ ok: true }`. |
-| `settings.update` | `threshold` integer 50–100; `schedule: off/15m/1h/24h` | Upsert and compute next due time (null for off); `{ ok: true }`. |
+| `settings.update` | `threshold` integer 50–100; optional `schedule: off/15m/1h/24h` | Upsert under user lock; omitted schedule leaves it untouched. Same interval preserves the due time, changed/enabled intervals start from now, off clears it; `{ ok: true }`. |
+| `schedule.update` | `schedule: off/15m/1h/24h` | Same scheduling semantics, without modifying threshold or credentials; `{ ok: true }`. Saving is allowed before setup is complete; creation waits for a key and enabled question. Disabling does not cancel a queued/running run. |
 | `key.set` | `key` trimmed 10–500 chars; provider inferred server-side (`vck_` → `vercel`, otherwise `typesafe`); legacy `provider` fields are ignored | Atomically encrypt/upsert key and provider, replacing the previous credential, and clear pause; `{ ok: true }`. No provider-key validation request. |
 | `key.remove` | None | Clear saved key, turn schedule off, clear next due; `{ ok: true }`. Does not cancel an already running run. |
 | `label.create` | `name` trimmed 1–225 chars | Return existing case-insensitive name match or create Gmail user label; `{ id, name }`. |

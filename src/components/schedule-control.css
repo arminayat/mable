@@ -1,0 +1,12 @@
+.schedule-trigger { gap: 7px; border-radius: 16px; white-space: nowrap; }
+.schedule-trigger[data-enabled] { background: var(--pale); color: var(--blue); }
+.schedule-dialog { color: var(--ink); font-size: 14px; }
+.schedule-dialog p { line-height: 1.6; }
+.schedule-dialog .select-field { margin: 12px 0; }
+.schedule-dialog .muted, .schedule-status { font-size: 12px; }
+.schedule-status { color: var(--muted); }
+@media (max-width: 600px) {
+  .topbar { flex-wrap: wrap; gap: 12px; }
+  .header-actions { gap: 2px; }
+  .schedule-trigger { padding-inline: 8px; font-size: 12px; }
+}

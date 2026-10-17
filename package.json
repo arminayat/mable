@@ -12,7 +12,7 @@
     "worker": "node --env-file-if-exists=.env --import tsx src/worker/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env ./node_modules/drizzle-kit/bin.cjs migrate",
-    "test:integration": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run tests/integration/worker.test.ts",
+    "test:integration": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run tests/integration/ --no-file-parallelism",
     "stop": "node scripts/stop.mjs"
   },
   "dependencies": {

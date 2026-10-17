@@ -13,6 +13,7 @@ import { QuestionComposer } from "./question-composer";
 import { UserMenu } from "./user-menu";
 import { RuleEditor } from "./rule-editor";
 import { SettingsPanel } from "./settings-panel";
+import { ScheduleControl } from "./schedule-control";
 import type { Command, Rule, View } from "./types";
 
 function ActionIcon({ action, label, children }: { action: string; label: string; children: React.ReactNode }) {
@@ -123,6 +124,7 @@ export function MableApp({ email }: { email: string }) {
   if (!view) return <main className="shell"><div className="brand">mable<span>.</span></div><p className="muted">Loading your questions…</p>{error && <p className="error">{error}</p>}</main>;
   return <main className="shell app-shell">
     <header className="topbar"><div className="brand">mable<span>.</span></div><div className="header-actions">
+      <ScheduleControl view={view} command={command} changed={refresh}/>
       <Tooltip delay={200}><Button variant="ghost" isIconOnly aria-label="Run history" aria-haspopup="dialog" onPress={() => setHistoryOpen(true)}><History size={20}/></Button><Tooltip.Content>History</Tooltip.Content></Tooltip>
       {view.rules.length > 0 && <Button variant="ghost" isIconOnly aria-label="Run now" aria-haspopup="dialog" isDisabled={!view.settings.hasKey || !view.gmailConnected || !view.rules.some((rule) => rule.enabled)} onPress={() => { setReviewRunId(view.run && ["running", "queued", "paused", "failed"].includes(view.run.status) ? view.run.id : null); setRunOpen(true); }}><Play size={20}/></Button>}
       <UserMenu openSettings={() => setSettingsOpen(true)} onError={setError}/>

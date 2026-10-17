@@ -98,3 +98,17 @@ Cancellation checks cannot undo a Gmail request already in flight. Account delet
 - **Cause:** progress snapshots contained only 20 rows and the dialog selected the page around the active email, with Previous/Next controls for older results.
 - **Fix:** stream all ordered result rows for a run into one continuous scroll list. Keep live-follow as an independent toggle, pause it on manual scrolling, and start Gmail preview requests only when rows approach the viewport.
 - **Prevention/status:** the disposable-database integration fixture checks a 25-email run both before and after the second worker batch, including the SSE snapshot. Source checks passed; rendered scrolling and very large inbox performance have not been browser-tested. Full snapshots scale with run size and are a future performance consideration.
+
+### K12 — preference saves postponed checks and stale ticks could ignore schedule edits (source fix)
+
+- **Symptom (source observation):** saving the same schedule or editing the threshold restarted its interval. A tick that had already selected a due account could queue work after its schedule was disabled or overwrite a new due time.
+- **Cause:** every settings save recalculated `nextRunAt`; scheduling read settings before run creation and unconditionally wrote a later deadline without rechecking.
+- **Fix:** preference updates preserve unchanged deadlines; the dedicated schedule command leaves the threshold untouched. The scheduler locks and rereads settings and atomically queues/advances the schedule. Unexpected failures roll back; setup/run conflicts defer by the selected interval. Removing a key also clears the Settings schedule draft.
+- **Prevention/status:** focused disposable-DB regressions cover deadline preservation, concurrent due ticks and disabling while a tick waits. This is a source fix; no production incident or live Gmail acceptance is claimed.
+
+### K13 — restricted local production-build environment (reproduced locally)
+
+- **Symptom (2026-10-17):** default `pnpm build` first failed to fetch the existing Inter font from Google Fonts. A network-enabled retry then failed during CSS processing with a Turbopack helper port-bind `Operation not permitted` error.
+- **Cause:** build-time network/local-port restrictions in the execution environment; the reported CSS entry was the existing `run-history-dialog.css`. These errors do not establish an application-source failure.
+- **Workaround/status:** `pnpm exec next build --webpack` passed compilation, TypeScript, page generation and build traces as a separate supported check; this does not establish default Turbopack success. Do not change product bundler configuration merely to mask this environment restriction.
+- **Prevention:** keep type/lint/unit/DB checks distinct from production bundle validation and run the default build in an environment permitting its font download and CSS helper process. No deployment acceptance is inferred.
